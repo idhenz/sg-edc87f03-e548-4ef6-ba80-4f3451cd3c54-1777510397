@@ -1,6 +1,6 @@
 ---
 title: Authentication and Role Management
-status: todo
+status: done
 priority: urgent
 type: feature
 tags: [auth, mysql]
