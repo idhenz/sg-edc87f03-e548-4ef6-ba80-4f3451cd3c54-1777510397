@@ -1,3 +1,6 @@
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
+
 const { S3Client, PutObjectCommand, ListBucketsCommand } = require('@aws-sdk/client-s3');
 
 async function testBiznetStorage() {
