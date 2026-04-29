@@ -81,14 +81,15 @@ export async function uploadToGoogleDrive({ fileBuffer, fileName, mimeType }: Up
     })
 
     // Get direct download link
-    const file = await drive.files.get({
+    const fileWithLink = await drive.files.get({
       fileId: file.data.id!,
       fields: 'webContentLink',
+      supportsAllDrives: true
     })
 
     return {
       fileId: file.data.id,
-      fileUrl: file.data.webContentLink || file.data.webViewLink || '',
+      fileUrl: fileWithLink.data.webContentLink || file.data.webViewLink || '',
     }
   } catch (error: any) {
     console.error('Google Drive Upload Error:', error)
