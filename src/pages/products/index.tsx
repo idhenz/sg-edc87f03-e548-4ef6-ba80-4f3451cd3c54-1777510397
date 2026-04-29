@@ -19,6 +19,16 @@ interface Product {
   description: string
 }
 
+// Helper functions untuk format ribuan
+const formatRupiah = (value: string | number): string => {
+  const numStr = value.toString().replace(/\D/g, '')
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const unformatRupiah = (value: string): number => {
+  return parseInt(value.replace(/\./g, '') || '0')
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -26,6 +36,7 @@ export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({})
+  const [formattedPrice, setFormattedPrice] = useState('')
   const { toast } = useToast()
 
   const fetchProducts = async () => {
@@ -55,7 +66,7 @@ export default function ProductsPage() {
     const data = {
       name: formData.get('name'),
       speed: formData.get('speed'),
-      price: formData.get('price'),
+      price: unformatRupiah(formattedPrice),
       description: formData.get('description'),
     }
 
@@ -93,6 +104,14 @@ export default function ProductsPage() {
     setCurrentProduct(product)
     setEditMode(true)
     setDialogOpen(true)
+    setFormattedPrice(formatRupiah(product.price))
+  }
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false)
+    setCurrentProduct({})
+    setEditMode(false)
+    setFormattedPrice('')
   }
 
   const handleDelete = async (id: number) => {
@@ -122,6 +141,16 @@ export default function ProductsPage() {
       p.speed.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <AppLayout>
+          <div className="text-center py-8 text-muted-foreground">Memuat data produk...</div>
+        </AppLayout>
+      </ProtectedRoute>
+    )
+  }
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -133,6 +162,7 @@ export default function ProductsPage() {
               if (!open) {
                 setEditMode(false)
                 setCurrentProduct({})
+                setFormattedPrice('')
               }
             }}>
               <DialogTrigger asChild>
@@ -172,11 +202,19 @@ export default function ProductsPage() {
                       <Input
                         id="price"
                         name="price"
-                        type="number"
+                        type="text"
                         placeholder="Misal: 250000"
-                        defaultValue={currentProduct.price}
+                        value={formattedPrice}
+                        onChange={(e) => {
+                          const formatted = formatRupiah(e.target.value)
+                          setFormattedPrice(formatted)
+                        }}
+                        defaultValue={currentProduct.price ? formatRupiah(currentProduct.price) : ''}
                         required
                       />
+                      <p className="text-sm text-muted-foreground">
+                        Ketik angka, akan otomatis terformat: 100000 → 100.000
+                      </p>
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="description">Deskripsi</Label>
@@ -190,7 +228,7 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={handleCloseDialog}>
                       Batal
                     </Button>
                     <Button type="submit">
