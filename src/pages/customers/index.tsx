@@ -20,6 +20,20 @@ interface Customer {
   address: string
   package_name: string
   status: string
+  customer_type: string
+  province_id: string
+  regency_id: string
+  district_id: string
+  village_id: string
+  province_name?: string
+  regency_name?: string
+  district_name?: string
+  village_name?: string
+}
+
+interface Region {
+  id: string
+  name: string
 }
 
 export default function CustomersPage() {
@@ -30,6 +44,16 @@ export default function CustomersPage() {
   const [editMode, setEditMode] = useState(false)
   const [currentCustomer, setCurrentCustomer] = useState<Partial<Customer>>({})
   const { toast } = useToast()
+
+  const [provinces, setProvinces] = useState<Region[]>([])
+  const [regencies, setRegencies] = useState<Region[]>([])
+  const [districts, setDistricts] = useState<Region[]>([])
+  const [villages, setVillages] = useState<Region[]>([])
+
+  const [selectedProvince, setSelectedProvince] = useState('')
+  const [selectedRegency, setSelectedRegency] = useState('')
+  const [selectedDistrict, setSelectedDistrict] = useState('')
+  const [selectedVillage, setSelectedVillage] = useState('')
 
   const fetchCustomers = async () => {
     try {
@@ -48,9 +72,80 @@ export default function CustomersPage() {
     }
   }
 
+  const fetchProvinces = async () => {
+    try {
+      const res = await fetch('/api/regions/provinces')
+      const data = await res.json()
+      setProvinces(data.provinces || [])
+    } catch (error) {
+      console.error('Failed to fetch provinces:', error)
+    }
+  }
+
+  const fetchRegencies = async (provinceId: string) => {
+    try {
+      const res = await fetch(`/api/regions/regencies?province_id=${provinceId}`)
+      const data = await res.json()
+      setRegencies(data.regencies || [])
+    } catch (error) {
+      console.error('Failed to fetch regencies:', error)
+    }
+  }
+
+  const fetchDistricts = async (regencyId: string) => {
+    try {
+      const res = await fetch(`/api/regions/districts?regency_id=${regencyId}`)
+      const data = await res.json()
+      setDistricts(data.districts || [])
+    } catch (error) {
+      console.error('Failed to fetch districts:', error)
+    }
+  }
+
+  const fetchVillages = async (districtId: string) => {
+    try {
+      const res = await fetch(`/api/regions/villages?district_id=${districtId}`)
+      const data = await res.json()
+      setVillages(data.villages || [])
+    } catch (error) {
+      console.error('Failed to fetch villages:', error)
+    }
+  }
+
   useEffect(() => {
     fetchCustomers()
+    fetchProvinces()
   }, [])
+
+  useEffect(() => {
+    if (selectedProvince) {
+      fetchRegencies(selectedProvince)
+      setSelectedRegency('')
+      setSelectedDistrict('')
+      setSelectedVillage('')
+      setRegencies([])
+      setDistricts([])
+      setVillages([])
+    }
+  }, [selectedProvince])
+
+  useEffect(() => {
+    if (selectedRegency) {
+      fetchDistricts(selectedRegency)
+      setSelectedDistrict('')
+      setSelectedVillage('')
+      setDistricts([])
+      setVillages([])
+    }
+  }, [selectedRegency])
+
+  useEffect(() => {
+    if (selectedDistrict) {
+      fetchVillages(selectedDistrict)
+      setSelectedVillage('')
+      setVillages([])
+    }
+  }, [selectedDistrict])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -62,6 +157,11 @@ export default function CustomersPage() {
       address: formData.get('address'),
       package_name: formData.get('package_name'),
       status: formData.get('status'),
+      customer_type: formData.get('customer_type'),
+      province_id: selectedProvince || null,
+      regency_id: selectedRegency || null,
+      district_id: selectedDistrict || null,
+      village_id: selectedVillage || null,
     }
 
     try {
@@ -84,6 +184,7 @@ export default function CustomersPage() {
       setDialogOpen(false)
       setEditMode(false)
       setCurrentCustomer({})
+      resetForm()
       fetchCustomers()
     } catch (error) {
       toast({
@@ -94,9 +195,36 @@ export default function CustomersPage() {
     }
   }
 
-  const handleEdit = (customer: Customer) => {
+  const resetForm = () => {
+    setSelectedProvince('')
+    setSelectedRegency('')
+    setSelectedDistrict('')
+    setSelectedVillage('')
+    setRegencies([])
+    setDistricts([])
+    setVillages([])
+  }
+
+  const handleEdit = async (customer: Customer) => {
     setCurrentCustomer(customer)
     setEditMode(true)
+    
+    if (customer.province_id) {
+      setSelectedProvince(customer.province_id)
+      await fetchRegencies(customer.province_id)
+    }
+    if (customer.regency_id) {
+      setSelectedRegency(customer.regency_id)
+      await fetchDistricts(customer.regency_id)
+    }
+    if (customer.district_id) {
+      setSelectedDistrict(customer.district_id)
+      await fetchVillages(customer.district_id)
+    }
+    if (customer.village_id) {
+      setSelectedVillage(customer.village_id)
+    }
+    
     setDialogOpen(true)
   }
 
@@ -134,14 +262,21 @@ export default function CustomersPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Data Pelanggan</h1>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open)
+              if (!open) {
+                setEditMode(false)
+                setCurrentCustomer({})
+                resetForm()
+              }
+            }}>
               <DialogTrigger asChild>
-                <Button onClick={() => { setEditMode(false); setCurrentCustomer({}); }}>
+                <Button>
                   <Plus className="mr-2 h-4 w-4" />
                   Tambah Pelanggan
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editMode ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle>
                 </DialogHeader>
@@ -155,6 +290,19 @@ export default function CustomersPage() {
                         defaultValue={currentCustomer.name}
                         required
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customer_type">Jenis Pelanggan</Label>
+                      <Select name="customer_type" defaultValue={currentCustomer.customer_type || 'personal'}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="personal">Personal</SelectItem>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                          <SelectItem value="reseller">Reseller</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -184,15 +332,6 @@ export default function CustomersPage() {
                         required
                       />
                     </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label htmlFor="address">Alamat</Label>
-                      <Input
-                        id="address"
-                        name="address"
-                        defaultValue={currentCustomer.address}
-                        required
-                      />
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="status">Status</Label>
                       <Select name="status" defaultValue={currentCustomer.status || 'active'}>
@@ -205,8 +344,92 @@ export default function CustomersPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="address">Alamat Detail</Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        defaultValue={currentCustomer.address}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="province">Provinsi</Label>
+                      <Select 
+                        value={selectedProvince} 
+                        onValueChange={setSelectedProvince}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Provinsi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {provinces.map((prov) => (
+                            <SelectItem key={prov.id} value={prov.id}>
+                              {prov.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="regency">Kabupaten/Kota</Label>
+                      <Select 
+                        value={selectedRegency} 
+                        onValueChange={setSelectedRegency}
+                        disabled={!selectedProvince}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Kabupaten/Kota" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regencies.map((reg) => (
+                            <SelectItem key={reg.id} value={reg.id}>
+                              {reg.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="district">Kecamatan</Label>
+                      <Select 
+                        value={selectedDistrict} 
+                        onValueChange={setSelectedDistrict}
+                        disabled={!selectedRegency}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Kecamatan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {districts.map((dist) => (
+                            <SelectItem key={dist.id} value={dist.id}>
+                              {dist.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="village">Kelurahan/Desa</Label>
+                      <Select 
+                        value={selectedVillage} 
+                        onValueChange={setSelectedVillage}
+                        disabled={!selectedDistrict}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Kelurahan/Desa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {villages.map((vill) => (
+                            <SelectItem key={vill.id} value={vill.id}>
+                              {vill.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="flex justify-end gap-3">
+                  <div className="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       Batal
                     </Button>
@@ -240,9 +463,11 @@ export default function CustomersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nama</TableHead>
+                      <TableHead>Jenis</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Telepon</TableHead>
                       <TableHead>Paket</TableHead>
+                      <TableHead>Wilayah</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
@@ -250,7 +475,7 @@ export default function CustomersPage() {
                   <TableBody>
                     {filteredCustomers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Tidak ada data pelanggan
                         </TableCell>
                       </TableRow>
@@ -258,9 +483,27 @@ export default function CustomersPage() {
                       filteredCustomers.map((customer) => (
                         <TableRow key={customer.id}>
                           <TableCell className="font-medium">{customer.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {customer.customer_type === 'personal' ? 'Personal' : 
+                               customer.customer_type === 'corporate' ? 'Corporate' : 'Reseller'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{customer.email}</TableCell>
                           <TableCell className="font-mono">{customer.phone}</TableCell>
                           <TableCell>{customer.package_name}</TableCell>
+                          <TableCell className="text-sm">
+                            {customer.village_name ? (
+                              <div className="space-y-1">
+                                <div>{customer.village_name}</div>
+                                <div className="text-muted-foreground">
+                                  {customer.district_name}, {customer.regency_name}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>
                               {customer.status === 'active' ? 'Aktif' : 'Non-aktif'}
