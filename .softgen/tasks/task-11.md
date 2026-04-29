@@ -22,11 +22,11 @@ Credentials sudah tersedia di environment variables (.env.local):
 Test script (test-biznet.js) sudah verified - koneksi berhasil dan file bisa diupload + diakses public.
 
 ## Checklist
-- [ ] Buat library src/lib/biznetStorage.ts dengan fungsi uploadFile dan deleteFile
-- [ ] Update /api/customers/upload.ts untuk upload dokumen pelanggan (KTP, dll)
-- [ ] Update /api/vendors/mous/upload.ts untuk upload file MOU/kontrak
-- [ ] Update /api/settings/upload-logo.ts untuk upload logo perusahaan
-- [ ] Hapus dependency Google Drive (src/lib/googleDrive.ts tidak dipakai lagi)
+- [x] Buat library src/lib/biznetStorage.ts dengan fungsi uploadFile dan deleteFile
+- [x] Update /api/customers/upload.ts untuk upload dokumen pelanggan (KTP, dll)
+- [x] Update /api/vendors/mous/upload.ts untuk upload file MOU/kontrak
+- [x] Update /api/settings/upload-logo.ts untuk upload logo perusahaan
+- [x] Hapus dependency Google Drive (src/lib/googleDrive.ts tidak dipakai lagi)
 - [ ] Test upload file di halaman Customers
 - [ ] Test upload file MOU di halaman Vendors
 - [ ] Test upload logo di halaman Settings
