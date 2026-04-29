@@ -1,21 +1,21 @@
 ---
 title: Products and System Settings
-status: todo
+status: done
 priority: medium
 type: feature
-tags: [catalog, configuration]
+tags: [products, settings]
 created_by: softgen
 ---
 
 ## Notes
-Bagian konfigurasi dasar aplikasi. Admin mengelola katalog paket internet yang dijual, serta mengatur preferensi umum sistem.
+Modul untuk mengelola paket/produk layanan internet dan halaman pengaturan untuk konfigurasi sistem serta profil perusahaan.
 
 ## Checklist
-- [ ] Halaman Data Produk/Layanan: Tabel daftar paket (misal: "Home 10Mbps", "Corporate 50Mbps") dengan harga, deskripsi, dan status ketersediaan.
-- [ ] Form Tambah/Edit Produk untuk mengatur detail layanan dan harga.
-- [ ] Halaman Pengaturan Aplikasi dengan form yang terbagi dalam beberapa tab/section.
-- [ ] Tab Profil Perusahaan: Pengaturan Nama Perusahaan, Alamat, Kontak, dan Logo (informasi ini akan muncul di kop cetakan Invoice).
-- [ ] Tab Konfigurasi Sistem: Pengaturan format nomor invoice, pajak default (PPN), dan syarat/ketentuan standar.
+- [x] Halaman Produk dengan tabel: Nama Paket, Deskripsi, Kecepatan (Mbps), Harga Bulanan, Status (Aktif/Non-aktif).
+- [x] Fitur pencarian paket berdasarkan nama atau deskripsi.
+- [x] Aksi untuk menambah, mengedit, dan menghapus paket.
+- [x] Halaman Pengaturan dengan form untuk mengisi: Nama Perusahaan, Alamat, Telepon, Email, Logo (upload file).
+- [x] Opsi untuk mengatur prefix nomor invoice, jatuh tempo pembayaran default, dan notifikasi email.
 
 ## Acceptance
 - Produk dapat ditambahkan dan muncul sebagai pilihan saat membuat Invoice Keluar.

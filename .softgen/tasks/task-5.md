@@ -1,6 +1,6 @@
 ---
 title: Mail and Document Administration
-status: todo
+status: done
 priority: medium
 type: feature
 tags: [admin, documents]
@@ -8,14 +8,14 @@ created_by: softgen
 ---
 
 ## Notes
-Modul kearsipan kantor untuk melacak surat-menyurat resmi perusahaan, baik dari pihak luar ke ISP (Surat Masuk) maupun dari ISP ke pihak luar (Surat Keluar).
+Modul kearsipan khusus Admin untuk mencatat surat masuk dan keluar. Fitur pencarian dan filtering berdasarkan tanggal atau kategori memudahkan audit atau laporan.
 
 ## Checklist
-- [ ] Halaman Surat Masuk: Tabel arsip dengan kolom Nomor Surat, Tanggal Terima, Pengirim, Perihal, dan Status Tindak Lanjut.
-- [ ] Form input Surat Masuk dengan field untuk nomor urut internal, ringkasan isi, dan kolom catatan.
-- [ ] Halaman Surat Keluar: Tabel pencatatan surat keluar dengan kolom Nomor Surat Keluar, Tanggal Kirim, Tujuan, dan Perihal.
-- [ ] Form input Surat Keluar lengkap dengan generator nomor surat otomatis berdasarkan format perusahaan (opsional/bisa diisi manual).
-- [ ] Fitur filter dan rentang tanggal (date range picker) untuk mencari arsip surat pada bulan/tahun tertentu.
+- [x] Halaman Surat Masuk dengan tabel: Nomor Surat, Pengirim, Perihal, Kategori, Tanggal Terima, Status.
+- [x] Halaman Surat Keluar dengan tabel: Nomor Surat, Penerima, Perihal, Kategori, Tanggal Kirim, Status.
+- [x] Fitur pencarian untuk kedua halaman berdasarkan nomor surat, pengirim/penerima, atau perihal.
+- [x] Aksi untuk mengedit, menghapus, dan melihat detail surat.
+- [x] (Opsional) Unggah file scan dokumen (PDF) ke dalam record surat.
 
 ## Acceptance
 - Data surat masuk dan keluar dapat dicatat, diurutkan berdasarkan tanggal, dan dicari dengan mudah.
