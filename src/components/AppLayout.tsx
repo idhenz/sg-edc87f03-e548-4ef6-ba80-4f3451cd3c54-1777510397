@@ -12,7 +12,8 @@ import {
   Wifi, 
   LogOut,
   Menu,
-  X
+  X,
+  Building2
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Pelanggan', href: '/customers', icon: Users },
   { label: 'Reseller', href: '/resellers', icon: UserCog },
+  { label: 'Vendor', href: '/vendors', icon: Building2 },
   { label: 'Produk', href: '/products', icon: Package },
   { label: 'Invoice Masuk', href: '/invoices/incoming', icon: FileText },
   { label: 'Invoice Keluar', href: '/invoices/outgoing', icon: FileText },
