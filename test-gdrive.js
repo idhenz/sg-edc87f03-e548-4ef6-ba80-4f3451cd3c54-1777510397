@@ -48,20 +48,12 @@ async function testGoogleDrive() {
 
     // Test folder access
     console.log('\n📁 Accessing folder...')
-    const folder = await drive.files.get({
-      fileId: folderId,
-      fields: 'id, name, mimeType',
-    })
-    
-    console.log(`✅ Folder found: "${folder.data.name}" (${folder.data.id})`)
-
-    // List files in folder
-    console.log('\n📄 Files in folder:')
     const response = await drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
-      fields: 'files(id, name, mimeType, createdTime, webViewLink)',
-      orderBy: 'createdTime desc',
+      q: `'${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name, mimeType, createdTime)',
       pageSize: 10,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true
     })
 
     if (response.data.files && response.data.files.length > 0) {

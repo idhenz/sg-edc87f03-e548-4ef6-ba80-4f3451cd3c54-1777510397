@@ -49,37 +49,45 @@ export async function uploadToGoogleDrive({ fileBuffer, fileName, mimeType }: Up
 
     const drive = google.drive({ version: 'v3', auth })
 
-    // Upload file to Google Drive
-    const response = await drive.files.create({
-      requestBody: {
-        name: fileName,
-        parents: [folderId],
-      },
-      media: {
-        mimeType,
-        body: Buffer.from(fileBuffer),
-      },
+    const fileMetadata = {
+      name: fileName,
+      parents: [folderId]
+    }
+
+    const media = {
+      mimeType,
+      body: require('stream').Readable.from(fileBuffer)
+    }
+
+    console.log('Uploading file to Google Drive...')
+    const file = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
       fields: 'id, webViewLink, webContentLink',
+      supportsAllDrives: true
     })
+
+    console.log('File uploaded successfully:', file.data.id)
 
     // Make file publicly accessible
     await drive.permissions.create({
-      fileId: response.data.id!,
+      fileId: file.data.id!,
       requestBody: {
         role: 'reader',
-        type: 'anyone',
+        type: 'anyone'
       },
+      supportsAllDrives: true
     })
 
     // Get direct download link
     const file = await drive.files.get({
-      fileId: response.data.id!,
+      fileId: file.data.id!,
       fields: 'webContentLink',
     })
 
     return {
-      fileId: response.data.id,
-      fileUrl: file.data.webContentLink || response.data.webViewLink || '',
+      fileId: file.data.id,
+      fileUrl: file.data.webContentLink || file.data.webViewLink || '',
     }
   } catch (error: any) {
     console.error('Google Drive Upload Error:', error)
