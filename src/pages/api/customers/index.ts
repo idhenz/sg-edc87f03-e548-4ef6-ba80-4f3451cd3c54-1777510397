@@ -26,12 +26,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           p.nama as province_name,
           k.nama as regency_name,
           kec.nama as district_name,
-          kel.nama as village_name
+          kel.nama as village_name,
+          prod.name as current_product_name,
+          prod.speed as current_product_speed,
+          v.name as current_vendor_name
         FROM customers c
         LEFT JOIN t_provinsi p ON c.province_id = p.id
         LEFT JOIN t_kota k ON c.regency_id = k.id
         LEFT JOIN t_kecamatan kec ON c.district_id = kec.id
         LEFT JOIN t_kelurahan kel ON c.village_id = kel.id
+        LEFT JOIN products prod ON c.current_product_id = prod.id
+        LEFT JOIN vendors v ON c.current_vendor_id = v.id
         ORDER BY c.id DESC
       `)
       return res.status(200).json({ customers })

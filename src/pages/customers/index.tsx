@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, Upload, X, FileText } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, Zap, History } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 
 interface Customer {
@@ -33,11 +34,41 @@ interface Customer {
   npwp_file?: string | null
   nib_file?: string | null
   sertifikat_standar_file?: string | null
+  current_product_id?: number
+  current_product_name?: string
+  current_product_speed?: string
+  current_vendor_id?: number
+  current_vendor_name?: string
+  subscription_status?: string
 }
 
 interface Region {
   id: string
   name: string
+}
+
+interface Product {
+  id: number
+  name: string
+  speed: string
+  price: number
+}
+
+interface Vendor {
+  id: number
+  name: string
+}
+
+interface ActivationHistory {
+  id: number
+  action_type: string
+  activation_date: string
+  notes: string
+  product_name: string
+  product_speed: string
+  product_price: number
+  vendor_name: string
+  created_at: string
 }
 
 export default function CustomersPage() {
@@ -71,6 +102,19 @@ export default function CustomersPage() {
     nib: false,
     sertifikat: false
   })
+
+  // Activation states
+  const [activationDialogOpen, setActivationDialogOpen] = useState(false)
+  const [activationCustomer, setActivationCustomer] = useState<Customer | null>(null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [activationSaving, setActivationSaving] = useState(false)
+
+  // History states
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null)
+  const [activationHistory, setActivationHistory] = useState<ActivationHistory[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   const fetchCustomers = async () => {
     try {
@@ -129,9 +173,48 @@ export default function CustomersPage() {
     }
   }
 
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch('/api/products')
+      const data = await res.json()
+      setProducts(data.products || [])
+    } catch (error) {
+      console.error('Failed to fetch products:', error)
+    }
+  }
+
+  const fetchVendors = async () => {
+    try {
+      const res = await fetch('/api/vendors')
+      const data = await res.json()
+      setVendors(data.vendors || [])
+    } catch (error) {
+      console.error('Failed to fetch vendors:', error)
+    }
+  }
+
+  const fetchActivationHistory = async (customerId: number) => {
+    try {
+      setHistoryLoading(true)
+      const res = await fetch(`/api/activations?customer_id=${customerId}`)
+      const data = await res.json()
+      setActivationHistory(data.history || [])
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal memuat riwayat aktivasi',
+        variant: 'destructive',
+      })
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchCustomers()
     fetchProvinces()
+    fetchProducts()
+    fetchVendors()
   }, [])
 
   useEffect(() => {
@@ -289,6 +372,48 @@ export default function CustomersPage() {
     }
   }
 
+  const handleActivationSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    
+    const data = {
+      customer_id: activationCustomer?.id,
+      product_id: formData.get('product_id') || null,
+      vendor_id: formData.get('vendor_id') || null,
+      action_type: formData.get('action_type'),
+      activation_date: formData.get('activation_date'),
+      notes: formData.get('notes'),
+    }
+
+    try {
+      setActivationSaving(true)
+      const res = await fetch('/api/activations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) throw new Error('Gagal menyimpan aktivasi')
+
+      toast({
+        title: 'Berhasil',
+        description: 'Aktivasi berhasil direkam',
+      })
+
+      setActivationDialogOpen(false)
+      setActivationCustomer(null)
+      fetchCustomers()
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menyimpan aktivasi',
+        variant: 'destructive',
+      })
+    } finally {
+      setActivationSaving(false)
+    }
+  }
+
   const resetForm = () => {
     setSelectedProvince('')
     setSelectedRegency('')
@@ -356,6 +481,47 @@ export default function CustomersPage() {
     }
   }
 
+  const handleActivation = (customer: Customer) => {
+    setActivationCustomer(customer)
+    setActivationDialogOpen(true)
+  }
+
+  const handleViewHistory = (customer: Customer) => {
+    setHistoryCustomer(customer)
+    setHistoryDialogOpen(true)
+    fetchActivationHistory(customer.id)
+  }
+
+  const getActionTypeLabel = (type: string) => {
+    switch (type) {
+      case 'activation':
+        return 'Aktivasi Baru'
+      case 'upgrade':
+        return 'Upgrade'
+      case 'downgrade':
+        return 'Downgrade'
+      case 'termination':
+        return 'Berhenti Berlangganan'
+      default:
+        return type
+    }
+  }
+
+  const getActionTypeBadge = (type: string) => {
+    switch (type) {
+      case 'activation':
+        return 'default'
+      case 'upgrade':
+        return 'default'
+      case 'downgrade':
+        return 'secondary'
+      case 'termination':
+        return 'destructive'
+      default:
+        return 'outline'
+    }
+  }
+
   const filteredCustomers = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -386,7 +552,7 @@ export default function CustomersPage() {
               size="sm"
               onClick={() => handleDeleteFile(fileType)}
             >
-              <X className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         ) : (
@@ -637,8 +803,7 @@ export default function CustomersPage() {
                       <TableHead>Jenis</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Telepon</TableHead>
-                      <TableHead>Paket</TableHead>
-                      <TableHead>Wilayah</TableHead>
+                      <TableHead>Paket Aktif</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
@@ -646,7 +811,7 @@ export default function CustomersPage() {
                   <TableBody>
                     {filteredCustomers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Tidak ada data pelanggan
                         </TableCell>
                       </TableRow>
@@ -662,26 +827,39 @@ export default function CustomersPage() {
                           </TableCell>
                           <TableCell>{customer.email}</TableCell>
                           <TableCell className="font-mono">{customer.phone}</TableCell>
-                          <TableCell>{customer.package_name}</TableCell>
-                          <TableCell className="text-sm">
-                            {customer.village_name ? (
-                              <div className="space-y-1">
-                                <div>{customer.village_name}</div>
-                                <div className="text-muted-foreground">
-                                  {customer.district_name}, {customer.regency_name}
-                                </div>
+                          <TableCell>
+                            {customer.current_product_name ? (
+                              <div className="text-sm">
+                                <div className="font-medium">{customer.current_product_name}</div>
+                                <div className="text-muted-foreground">{customer.current_product_speed}</div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground">Belum aktif</span>
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>
-                              {customer.status === 'active' ? 'Aktif' : 'Non-aktif'}
+                            <Badge variant={customer.subscription_status === 'active' ? 'default' : 'secondary'}>
+                              {customer.subscription_status === 'active' ? 'Aktif' : 'Non-aktif'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleActivation(customer)}
+                                title="Aktivasi / Ubah Paket"
+                              >
+                                <Zap className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewHistory(customer)}
+                                title="Lihat Riwayat"
+                              >
+                                <History className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -706,6 +884,152 @@ export default function CustomersPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Activation Dialog */}
+          <Dialog open={activationDialogOpen} onOpenChange={setActivationDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Aktivasi / Ubah Paket Layanan</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleActivationSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Pelanggan</Label>
+                  <Input value={activationCustomer?.name || ''} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="action_type">Jenis Aksi *</Label>
+                  <Select name="action_type" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih jenis aksi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activation">Aktivasi Baru</SelectItem>
+                      <SelectItem value="upgrade">Upgrade Paket</SelectItem>
+                      <SelectItem value="downgrade">Downgrade Paket</SelectItem>
+                      <SelectItem value="termination">Berhenti Berlangganan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product_id">Paket Layanan</Label>
+                  <Select name="product_id">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih paket (opsional untuk berhenti)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id.toString()}>
+                          {product.name} - {product.speed}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vendor_id">Vendor</Label>
+                  <Select name="vendor_id">
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih vendor (opsional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors.map((vendor) => (
+                        <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                          {vendor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="activation_date">Tanggal Aktivasi *</Label>
+                  <Input
+                    id="activation_date"
+                    name="activation_date"
+                    type="date"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Catatan</Label>
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    rows={3}
+                    placeholder="Catatan tambahan (opsional)"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setActivationDialogOpen(false)}>
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={activationSaving}>
+                    {activationSaving ? 'Menyimpan...' : 'Simpan Aktivasi'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* History Dialog */}
+          <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Riwayat Berlangganan - {historyCustomer?.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {historyLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Memuat riwayat...</div>
+                ) : activationHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Belum ada riwayat aktivasi
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activationHistory.map((history) => (
+                      <Card key={history.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant={getActionTypeBadge(history.action_type) as any}>
+                                  {getActionTypeLabel(history.action_type)}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  {new Date(history.activation_date).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                              {history.product_name && (
+                                <div className="space-y-1">
+                                  <div className="font-medium">{history.product_name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {history.product_speed} • Rp {new Intl.NumberFormat('id-ID').format(history.product_price)}
+                                  </div>
+                                </div>
+                              )}
+                              {history.vendor_name && (
+                                <div className="text-sm text-muted-foreground">
+                                  Vendor: {history.vendor_name}
+                                </div>
+                              )}
+                              {history.notes && (
+                                <div className="text-sm text-muted-foreground italic">
+                                  {history.notes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </AppLayout>
     </ProtectedRoute>
