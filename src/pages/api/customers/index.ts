@@ -49,6 +49,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ktp_file, npwp_file, nib_file, sertifikat_standar_file
       } = req.body
       
+      // Convert empty strings to null
+      const cleanProvinceId = province_id && province_id !== '' ? province_id : null
+      const cleanRegencyId = regency_id && regency_id !== '' ? regency_id : null
+      const cleanDistrictId = district_id && district_id !== '' ? district_id : null
+      const cleanVillageId = village_id && village_id !== '' ? village_id : null
+      
       await query(
         `INSERT INTO customers 
         (name, email, phone, address, status, customer_type, 
@@ -56,9 +62,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
          ktp_file, npwp_file, nib_file, sertifikat_standar_file) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          name, email, phone, address, status || 'active', customer_type || 'personal', 
-          province_id || null, regency_id || null, district_id || null, village_id || null,
-          ktp_file || null, npwp_file || null, nib_file || null, sertifikat_standar_file || null
+          name, 
+          email, 
+          phone, 
+          address, 
+          status || 'active', 
+          customer_type || 'personal', 
+          cleanProvinceId,
+          cleanRegencyId,
+          cleanDistrictId,
+          cleanVillageId,
+          ktp_file || null, 
+          npwp_file || null, 
+          nib_file || null, 
+          sertifikat_standar_file || null
         ]
       )
       
@@ -73,6 +90,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ktp_file, npwp_file, nib_file, sertifikat_standar_file,
         delete_ktp, delete_npwp, delete_nib, delete_sertifikat
       } = req.body
+      
+      // Convert empty strings to null
+      const cleanProvinceId = province_id && province_id !== '' ? province_id : null
+      const cleanRegencyId = regency_id && regency_id !== '' ? regency_id : null
+      const cleanDistrictId = district_id && district_id !== '' ? district_id : null
+      const cleanVillageId = village_id && village_id !== '' ? village_id : null
       
       // Ambil data lama untuk menghapus file yang diganti
       const [oldData]: any = await query('SELECT * FROM customers WHERE id = ?', [id])
@@ -104,7 +127,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         WHERE id = ?`,
         [
           name, email, phone, address, package_name, status, customer_type,
-          province_id || null, regency_id || null, district_id || null, village_id || null,
+          cleanProvinceId,
+          cleanRegencyId,
+          cleanDistrictId,
+          cleanVillageId,
           delete_ktp ? null : (ktp_file || oldData.ktp_file || null),
           delete_npwp ? null : (npwp_file || oldData.npwp_file || null),
           delete_nib ? null : (nib_file || oldData.nib_file || null),
