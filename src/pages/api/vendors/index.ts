@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'Nama vendor wajib diisi' })
       }
 
-      const result = await query(
+      const result: any = await query(
         'INSERT INTO vendors (name, contact, address) VALUES (?, ?, ?)',
         [name, contact || null, address || null]
       )
