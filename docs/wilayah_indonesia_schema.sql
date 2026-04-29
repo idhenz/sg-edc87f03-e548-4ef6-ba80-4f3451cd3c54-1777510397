@@ -17,6 +17,14 @@ ADD COLUMN regency_id VARCHAR(4) AFTER province_id,
 ADD COLUMN district_id VARCHAR(7) AFTER regency_id,
 ADD COLUMN village_id VARCHAR(10) AFTER district_id;
 
+-- LANGKAH 3: Menambahkan kolom file dokumen
+-- Semua file bersifat opsional (NULL) dan dapat dilengkapi kemudian hari
+ALTER TABLE customers
+ADD COLUMN ktp_file VARCHAR(255) NULL AFTER village_id,
+ADD COLUMN npwp_file VARCHAR(255) NULL AFTER ktp_file,
+ADD COLUMN nib_file VARCHAR(255) NULL AFTER npwp_file,
+ADD COLUMN sertifikat_standar_file VARCHAR(255) NULL AFTER nib_file;
+
 -- CATATAN: 
 -- Tabel wilayah yang akan digunakan dari wilayah_indonesia.sql:
 -- - t_provinsi (id, nama)
@@ -29,3 +37,9 @@ ADD COLUMN village_id VARCHAR(10) AFTER district_id;
 -- - ID Kota: "1101" (Kab. Aceh Selatan) -- 2 digit pertama = provinsi
 -- - ID Kecamatan: "110101" (Bakongan) -- 4 digit pertama = kota
 -- - ID Kelurahan: "1101012001" (Keude Bakongan) -- 6 digit pertama = kecamatan
+--
+-- File Dokumen per Jenis Pelanggan:
+-- - Personal: ktp_file
+-- - Corporate: ktp_file, npwp_file
+-- - Reseller: ktp_file, npwp_file, nib_file, sertifikat_standar_file
+-- File disimpan di: public/uploads/customers/
