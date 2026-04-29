@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const form = formidable({ maxFileSize: 5 * 1024 * 1024 })
+    const form = formidable({ maxFileSize: 10 * 1024 * 1024 }) // 10MB max
     
     const [fields, files] = await form.parse(req)
     const file = Array.isArray(files.file) ? files.file[0] : files.file
@@ -25,15 +25,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'No file uploaded' })
     }
 
-    if (!documentType || !['ktp', 'npwp'].includes(documentType)) {
-      return res.status(400).json({ message: 'Invalid document type' })
+    const validTypes = ['ktp', 'npwp', 'nib', 'sertifikat_standar']
+    if (!documentType || !validTypes.includes(documentType)) {
+      return res.status(400).json({ message: 'Invalid document type. Must be: ktp, npwp, nib, or sertifikat_standar' })
+    }
+
+    const validMimeTypes = [
+      'image/png', 'image/jpg', 'image/jpeg', 'image/gif', 'image/bmp',
+      'application/pdf'
+    ]
+    if (!validMimeTypes.includes(file.mimetype || '')) {
+      return res.status(400).json({ message: 'Invalid file type. Only images (PNG, JPG, JPEG, GIF, BMP) and PDF allowed' })
     }
 
     const fileBuffer = fs.readFileSync(file.filepath)
     
     const fileUrl = await uploadFile(fileBuffer, file.originalFilename || 'document', {
       folder: `customers/${documentType}`,
-      contentType: file.mimetype || 'image/jpeg',
+      contentType: file.mimetype || 'application/octet-stream',
     })
 
     fs.unlinkSync(file.filepath)

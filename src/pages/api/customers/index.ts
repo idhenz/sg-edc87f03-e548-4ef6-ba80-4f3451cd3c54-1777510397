@@ -31,10 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           prod.speed as current_product_speed,
           v.name as current_vendor_name
         FROM customers c
-        LEFT JOIN t_provinsi p ON c.province_id = p.id
-        LEFT JOIN t_kota k ON c.regency_id = k.id
-        LEFT JOIN t_kecamatan kec ON c.district_id = kec.id
-        LEFT JOIN t_kelurahan kel ON c.village_id = kel.id
+        LEFT JOIN t_provinsi p ON CAST(c.province_id AS CHAR) = CAST(p.id AS CHAR)
+        LEFT JOIN t_kota k ON CAST(c.regency_id AS CHAR) = CAST(k.id AS CHAR)
+        LEFT JOIN t_kecamatan kec ON CAST(c.district_id AS CHAR) = CAST(kec.id AS CHAR)
+        LEFT JOIN t_kelurahan kel ON CAST(c.village_id AS CHAR) = CAST(kel.id AS CHAR)
         LEFT JOIN products prod ON c.current_product_id = prod.id
         LEFT JOIN vendors v ON c.current_vendor_id = v.id
         ORDER BY c.id DESC
@@ -44,19 +44,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'POST') {
       const { 
-        name, email, phone, address, package_name, status, customer_type,
+        name, email, phone, address, status, customer_type,
         province_id, regency_id, district_id, village_id,
         ktp_file, npwp_file, nib_file, sertifikat_standar_file
       } = req.body
       
       await query(
         `INSERT INTO customers 
-        (name, email, phone, address, package_name, status, customer_type, 
+        (name, email, phone, address, status, customer_type, 
          province_id, regency_id, district_id, village_id,
          ktp_file, npwp_file, nib_file, sertifikat_standar_file) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          name, email, phone, address, package_name, status || 'active', customer_type || 'personal', 
+          name, email, phone, address, status || 'active', customer_type || 'personal', 
           province_id || null, regency_id || null, district_id || null, village_id || null,
           ktp_file || null, npwp_file || null, nib_file || null, sertifikat_standar_file || null
         ]
