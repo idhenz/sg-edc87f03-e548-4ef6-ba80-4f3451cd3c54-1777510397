@@ -1,4 +1,5 @@
 import { google } from 'googleapis'
+import { Readable } from 'stream'
 
 interface UploadFileParams {
   fileBuffer: Buffer
@@ -56,7 +57,7 @@ export async function uploadToGoogleDrive({ fileBuffer, fileName, mimeType }: Up
 
     const media = {
       mimeType,
-      body: require('stream').Readable.from(fileBuffer)
+      body: Readable.from(fileBuffer)
     }
 
     console.log('Uploading file to Google Drive...')
