@@ -1,6 +1,6 @@
 ---
 title: Riwayat Kontrak dan MOU Vendor
-status: todo
+status: done
 priority: high
 type: feature
 tags: [vendor, history, document]
