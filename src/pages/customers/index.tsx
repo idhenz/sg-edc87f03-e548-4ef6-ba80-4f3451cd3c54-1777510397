@@ -252,6 +252,7 @@ export default function CustomersPage() {
 
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('type', fileType)
 
     try {
       setUploadingFile(fileType)
@@ -260,7 +261,10 @@ export default function CustomersPage() {
         body: formData,
       })
 
-      if (!res.ok) throw new Error('Upload failed')
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.message || 'Upload failed')
+      }
 
       const data = await res.json()
       
@@ -274,7 +278,7 @@ export default function CustomersPage() {
         case 'nib':
           setNibFile(data.fileUrl)
           break
-        case 'sertifikat':
+        case 'sertifikat_standar':
           setSertifikatFile(data.fileUrl)
           break
       }
@@ -283,10 +287,10 @@ export default function CustomersPage() {
         title: 'Berhasil',
         description: 'File berhasil diupload',
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Gagal mengupload file',
+        description: error.message || 'Gagal mengupload file',
         variant: 'destructive',
       })
     } finally {
@@ -765,7 +769,7 @@ export default function CustomersPage() {
                       {selectedCustomerType === 'reseller' && (
                         <>
                           {renderFileUpload('nib', 'NIB', nibFile)}
-                          {renderFileUpload('sertifikat', 'Sertifikat Standar', sertifikatFile)}
+                          {renderFileUpload('sertifikat_standar', 'Sertifikat Standar', sertifikatFile)}
                         </>
                       )}
                     </div>
