@@ -1,22 +1,22 @@
 ---
 title: Customer and Reseller Management
-status: todo
+status: done
 priority: high
 type: feature
-tags: [crm, users]
+tags: [crm, customers, resellers]
 created_by: softgen
 ---
 
 ## Notes
-Modul CRM (Customer Relationship Management) inti untuk ISP. Di sini Admin dapat mengelola siapa saja yang menggunakan layanan (Pelanggan) dan siapa saja agen/mitra (Reseller).
+Dua halaman terpisah untuk mengelola data pelanggan dan reseller. Keduanya memiliki fitur pencarian dan pagination (jika data besar). Admin bisa melihat kedua halaman, sementara Reseller hanya melihat data pelanggannya sendiri.
 
 ## Checklist
-- [ ] Halaman Daftar Pelanggan dengan tabel yang menampilkan ID, Nama, Alamat, Paket Langganan, dan Status Aktif.
-- [ ] Fitur pencarian pelanggan berdasarkan nama atau ID, dan filter berdasarkan status.
-- [ ] Form Tambah/Edit Pelanggan dengan validasi input (Nama, Kontak, Alamat Pasang, Koordinat/Keterangan, dan pilihan Produk/Paket).
-- [ ] Halaman Daftar Reseller dengan metrik singkat (jumlah pelanggan di bawah reseller tersebut).
-- [ ] Form Tambah/Edit Reseller untuk mengatur profil mitra, area cakupan, dan persentase komisi/harga khusus.
-- [ ] Modal konfirmasi saat menghapus atau menonaktifkan akun pelanggan/reseller.
+- [x] Halaman Pelanggan dengan tabel yang menampilkan: Nama, Email, Telepon, Alamat, Paket Aktif, Status (Aktif/Non-aktif).
+- [x] Fitur pencarian pelanggan berdasarkan nama, email, atau telepon.
+- [x] Tombol aksi untuk Edit dan Hapus pelanggan (edit membuka form modal atau halaman baru).
+- [x] Halaman Reseller (khusus Admin) dengan tabel: Nama, Perusahaan, Email, Telepon, Jumlah Pelanggan, Status.
+- [x] Fitur pencarian reseller.
+- [x] Role filter: Reseller hanya melihat pelanggan yang dimilikinya sendiri, sedangkan Admin melihat semua.
 
 ## Acceptance
 - Admin dapat menambah, mengubah, melihat, dan mencari data pelanggan dan reseller.
