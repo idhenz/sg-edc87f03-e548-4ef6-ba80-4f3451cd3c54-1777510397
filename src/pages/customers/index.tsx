@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, FileText, Zap, History } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, Zap, History, User, Building2, Users } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,7 +19,6 @@ interface Customer {
   email: string
   phone: string
   address: string
-  package_name: string
   status: string
   customer_type: string
   province_id: string
@@ -324,7 +323,6 @@ export default function CustomersPage() {
       email: formData.get('email'),
       phone: formData.get('phone'),
       address: formData.get('address'),
-      package_name: formData.get('package_name'),
       status: formData.get('status'),
       customer_type: selectedCustomerType,
       province_id: selectedProvince || null,
@@ -607,20 +605,36 @@ export default function CustomersPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="customer_type">Jenis Pelanggan</Label>
-                      <Select 
-                        value={selectedCustomerType} 
-                        onValueChange={setSelectedCustomerType}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="personal">Personal</SelectItem>
-                          <SelectItem value="corporate">Corporate</SelectItem>
-                          <SelectItem value="reseller">Reseller</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Jenis Pelanggan</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={selectedCustomerType === 'personal' ? 'default' : 'outline'}
+                          className="flex-1 flex items-center gap-2"
+                          onClick={() => setSelectedCustomerType('personal')}
+                        >
+                          <User className="h-4 w-4" />
+                          Personal
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={selectedCustomerType === 'corporate' ? 'default' : 'outline'}
+                          className="flex-1 flex items-center gap-2"
+                          onClick={() => setSelectedCustomerType('corporate')}
+                        >
+                          <Building2 className="h-4 w-4" />
+                          Corporate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={selectedCustomerType === 'reseller' ? 'default' : 'outline'}
+                          className="flex-1 flex items-center gap-2"
+                          onClick={() => setSelectedCustomerType('reseller')}
+                        >
+                          <Users className="h-4 w-4" />
+                          Reseller
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -638,15 +652,6 @@ export default function CustomersPage() {
                         id="phone"
                         name="phone"
                         defaultValue={currentCustomer.phone}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="package_name">Paket Layanan</Label>
-                      <Input
-                        id="package_name"
-                        name="package_name"
-                        defaultValue={currentCustomer.package_name}
                         required
                       />
                     </div>
