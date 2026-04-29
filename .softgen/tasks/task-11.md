@@ -1,11 +1,11 @@
 ---
 title: Migrasi Upload File ke Biznet GIO S3
-status: in_progress
+status: done
 priority: urgent
 type: feature
-tags: [storage, upload, biznet]
+tags: [upload, storage, biznet, s3]
 created_by: agent
-created_at: 2026-04-29T23:08:52Z
+created_at: 2026-04-29
 position: 11
 ---
 
@@ -27,9 +27,9 @@ Test script (test-biznet.js) sudah verified - koneksi berhasil dan file bisa diu
 - [x] Update /api/vendors/mous/upload.ts untuk upload file MOU/kontrak
 - [x] Update /api/settings/upload-logo.ts untuk upload logo perusahaan
 - [x] Hapus dependency Google Drive (src/lib/googleDrive.ts tidak dipakai lagi)
-- [ ] Test upload file di halaman Customers
-- [ ] Test upload file MOU di halaman Vendors
-- [ ] Test upload logo di halaman Settings
+- [x] Test upload file di halaman Customers
+- [x] Test upload file MOU di halaman Vendors
+- [x] Test upload logo di halaman Settings
 
 ## Acceptance
 - User bisa upload dokumen pelanggan dan file langsung tersimpan di Biznet GIO bucket 'dokumen'
