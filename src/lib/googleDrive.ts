@@ -6,19 +6,42 @@ interface UploadFileParams {
   mimeType: string
 }
 
+// Fix \n format in private key from environment variables
+const getPrivateKey = () => {
+  const key = process.env.GOOGLE_PRIVATE_KEY
+  if (!key) return undefined
+  
+  // If the key is wrapped in quotes, remove them
+  let formattedKey = key
+  if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
+    formattedKey = formattedKey.slice(1, -1)
+  }
+  
+  // Replace literal '\n' string with actual newline characters
+  return formattedKey.replace(/\\n/g, '\n')
+}
+
 export async function uploadToGoogleDrive({ fileBuffer, fileName, mimeType }: UploadFileParams) {
   try {
-    // Parse private key from environment variable
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    console.log('Initializing Google Drive upload for:', fileName)
     
-    if (!privateKey || !process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_DRIVE_FOLDER_ID) {
-      throw new Error('Google Drive credentials are not configured')
+    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL
+    const privateKey = getPrivateKey()
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID
+
+    if (!clientEmail || !privateKey || !folderId) {
+      console.error('Missing Google Drive credentials:', { 
+        hasEmail: !!clientEmail, 
+        hasKey: !!privateKey, 
+        hasFolderId: !!folderId 
+      })
+      throw new Error('Kredensial Google Drive tidak lengkap. Periksa pengaturan Environment Anda.')
     }
 
     // Authenticate with Google Drive
     const auth = new google.auth.GoogleAuth({
       credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        client_email: clientEmail,
         private_key: privateKey,
       },
       scopes: ['https://www.googleapis.com/auth/drive.file'],
@@ -30,7 +53,7 @@ export async function uploadToGoogleDrive({ fileBuffer, fileName, mimeType }: Up
     const response = await drive.files.create({
       requestBody: {
         name: fileName,
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
+        parents: [folderId],
       },
       media: {
         mimeType,
