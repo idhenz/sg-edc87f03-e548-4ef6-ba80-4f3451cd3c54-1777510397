@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, Upload, X, FileText } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -29,6 +29,10 @@ interface Customer {
   regency_name?: string
   district_name?: string
   village_name?: string
+  ktp_file?: string | null
+  npwp_file?: string | null
+  nib_file?: string | null
+  sertifikat_standar_file?: string | null
 }
 
 interface Region {
@@ -54,6 +58,19 @@ export default function CustomersPage() {
   const [selectedRegency, setSelectedRegency] = useState('')
   const [selectedDistrict, setSelectedDistrict] = useState('')
   const [selectedVillage, setSelectedVillage] = useState('')
+  const [selectedCustomerType, setSelectedCustomerType] = useState('personal')
+
+  const [uploadingFile, setUploadingFile] = useState('')
+  const [ktpFile, setKtpFile] = useState<string | null>(null)
+  const [npwpFile, setNpwpFile] = useState<string | null>(null)
+  const [nibFile, setNibFile] = useState<string | null>(null)
+  const [sertifikatFile, setSertifikatFile] = useState<string | null>(null)
+  const [deleteFlags, setDeleteFlags] = useState({
+    ktp: false,
+    npwp: false,
+    nib: false,
+    sertifikat: false
+  })
 
   const fetchCustomers = async () => {
     try {
@@ -147,6 +164,75 @@ export default function CustomersPage() {
     }
   }, [selectedDistrict])
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      setUploadingFile(fileType)
+      const res = await fetch('/api/customers/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error('Upload failed')
+
+      const data = await res.json()
+      
+      switch (fileType) {
+        case 'ktp':
+          setKtpFile(data.fileUrl)
+          break
+        case 'npwp':
+          setNpwpFile(data.fileUrl)
+          break
+        case 'nib':
+          setNibFile(data.fileUrl)
+          break
+        case 'sertifikat':
+          setSertifikatFile(data.fileUrl)
+          break
+      }
+
+      toast({
+        title: 'Berhasil',
+        description: 'File berhasil diupload',
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal mengupload file',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploadingFile('')
+    }
+  }
+
+  const handleDeleteFile = (fileType: string) => {
+    switch (fileType) {
+      case 'ktp':
+        setKtpFile(null)
+        setDeleteFlags(prev => ({ ...prev, ktp: true }))
+        break
+      case 'npwp':
+        setNpwpFile(null)
+        setDeleteFlags(prev => ({ ...prev, npwp: true }))
+        break
+      case 'nib':
+        setNibFile(null)
+        setDeleteFlags(prev => ({ ...prev, nib: true }))
+        break
+      case 'sertifikat':
+        setSertifikatFile(null)
+        setDeleteFlags(prev => ({ ...prev, sertifikat: true }))
+        break
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
@@ -157,11 +243,19 @@ export default function CustomersPage() {
       address: formData.get('address'),
       package_name: formData.get('package_name'),
       status: formData.get('status'),
-      customer_type: formData.get('customer_type'),
+      customer_type: selectedCustomerType,
       province_id: selectedProvince || null,
       regency_id: selectedRegency || null,
       district_id: selectedDistrict || null,
       village_id: selectedVillage || null,
+      ktp_file: ktpFile,
+      npwp_file: npwpFile,
+      nib_file: nibFile,
+      sertifikat_standar_file: sertifikatFile,
+      delete_ktp: deleteFlags.ktp,
+      delete_npwp: deleteFlags.npwp,
+      delete_nib: deleteFlags.nib,
+      delete_sertifikat: deleteFlags.sertifikat,
     }
 
     try {
@@ -200,14 +294,21 @@ export default function CustomersPage() {
     setSelectedRegency('')
     setSelectedDistrict('')
     setSelectedVillage('')
+    setSelectedCustomerType('personal')
     setRegencies([])
     setDistricts([])
     setVillages([])
+    setKtpFile(null)
+    setNpwpFile(null)
+    setNibFile(null)
+    setSertifikatFile(null)
+    setDeleteFlags({ ktp: false, npwp: false, nib: false, sertifikat: false })
   }
 
   const handleEdit = async (customer: Customer) => {
     setCurrentCustomer(customer)
     setEditMode(true)
+    setSelectedCustomerType(customer.customer_type || 'personal')
     
     if (customer.province_id) {
       setSelectedProvince(customer.province_id)
@@ -224,6 +325,12 @@ export default function CustomersPage() {
     if (customer.village_id) {
       setSelectedVillage(customer.village_id)
     }
+    
+    setKtpFile(customer.ktp_file || null)
+    setNpwpFile(customer.npwp_file || null)
+    setNibFile(customer.nib_file || null)
+    setSertifikatFile(customer.sertifikat_standar_file || null)
+    setDeleteFlags({ ktp: false, npwp: false, nib: false, sertifikat: false })
     
     setDialogOpen(true)
   }
@@ -255,6 +362,48 @@ export default function CustomersPage() {
       c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.phone.includes(searchTerm)
   )
+
+  const renderFileUpload = (fileType: string, label: string, currentFile: string | null) => {
+    const isUploading = uploadingFile === fileType
+    
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={fileType}>{label}</Label>
+        {currentFile && !deleteFlags[fileType as keyof typeof deleteFlags] ? (
+          <div className="flex items-center gap-2 p-2 border rounded-md">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <a 
+              href={currentFile} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:underline flex-1"
+            >
+              Lihat File
+            </a>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteFile(fileType)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Input
+              id={fileType}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => handleFileUpload(e, fileType)}
+              disabled={isUploading}
+            />
+            {isUploading && <span className="text-sm text-muted-foreground">Uploading...</span>}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <ProtectedRoute>
@@ -293,7 +442,10 @@ export default function CustomersPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="customer_type">Jenis Pelanggan</Label>
-                      <Select name="customer_type" defaultValue={currentCustomer.customer_type || 'personal'}>
+                      <Select 
+                        value={selectedCustomerType} 
+                        onValueChange={setSelectedCustomerType}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -429,6 +581,25 @@ export default function CustomersPage() {
                       </Select>
                     </div>
                   </div>
+
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-4">Dokumen Pendukung (Opsional)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {renderFileUpload('ktp', 'KTP', ktpFile)}
+                      
+                      {(selectedCustomerType === 'corporate' || selectedCustomerType === 'reseller') && 
+                        renderFileUpload('npwp', 'NPWP', npwpFile)
+                      }
+                      
+                      {selectedCustomerType === 'reseller' && (
+                        <>
+                          {renderFileUpload('nib', 'NIB', nibFile)}
+                          {renderFileUpload('sertifikat', 'Sertifikat Standar', sertifikatFile)}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-3 pt-4">
                     <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                       Batal
