@@ -10,9 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ message: 'regency_id diperlukan' })
       }
       
+      // Relasi: ID Kecamatan berawalan dengan ID Kota (misal: kota "1101" -> kecamatan "110101", "110102", dll)
       const districts = await query(
-        'SELECT id, name FROM districts WHERE regency_id = ? ORDER BY name ASC',
-        [regency_id]
+        'SELECT id, nama as name FROM t_kecamatan WHERE id LIKE ? ORDER BY nama ASC',
+        [`${regency_id}%`]
       )
       return res.status(200).json({ districts })
     }

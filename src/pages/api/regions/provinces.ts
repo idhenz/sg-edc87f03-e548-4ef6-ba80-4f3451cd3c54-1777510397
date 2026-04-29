@@ -4,7 +4,7 @@ import { query } from '@/lib/db'
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
-      const provinces = await query('SELECT id, name FROM provinces ORDER BY name ASC')
+      const provinces = await query('SELECT id, nama as name FROM t_provinsi ORDER BY nama ASC')
       return res.status(200).json({ provinces })
     }
     return res.status(405).json({ message: 'Method not allowed' })

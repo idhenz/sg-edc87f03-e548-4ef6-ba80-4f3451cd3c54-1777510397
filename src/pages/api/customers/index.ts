@@ -7,15 +7,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const customers = await query(`
         SELECT 
           c.*,
-          p.name as province_name,
-          r.name as regency_name,
-          d.name as district_name,
-          v.name as village_name
+          p.nama as province_name,
+          k.nama as regency_name,
+          kec.nama as district_name,
+          kel.nama as village_name
         FROM customers c
-        LEFT JOIN provinces p ON c.province_id = p.id
-        LEFT JOIN regencies r ON c.regency_id = r.id
-        LEFT JOIN districts d ON c.district_id = d.id
-        LEFT JOIN villages v ON c.village_id = v.id
+        LEFT JOIN t_provinsi p ON c.province_id = p.id
+        LEFT JOIN t_kota k ON c.regency_id = k.id
+        LEFT JOIN t_kecamatan kec ON c.district_id = kec.id
+        LEFT JOIN t_kelurahan kel ON c.village_id = kel.id
         ORDER BY c.id DESC
       `)
       return res.status(200).json({ customers })
