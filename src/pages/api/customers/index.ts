@@ -85,7 +85,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'PUT') {
       const { id } = req.query
       const { 
-        name, email, phone, address, package_name, status, customer_type,
+        name, email, phone, address, status, customer_type,
         province_id, regency_id, district_id, village_id,
         ktp_file, npwp_file, nib_file, sertifikat_standar_file,
         delete_ktp, delete_npwp, delete_nib, delete_sertifikat
@@ -121,12 +121,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       await query(
         `UPDATE customers 
-        SET name = ?, email = ?, phone = ?, address = ?, package_name = ?, status = ?, customer_type = ?,
+        SET name = ?, email = ?, phone = ?, address = ?, status = ?, customer_type = ?,
             province_id = ?, regency_id = ?, district_id = ?, village_id = ?,
             ktp_file = ?, npwp_file = ?, nib_file = ?, sertifikat_standar_file = ?
         WHERE id = ?`,
         [
-          name, email, phone, address, package_name, status, customer_type,
+          name, email, phone, address, status, customer_type,
           cleanProvinceId,
           cleanRegencyId,
           cleanDistrictId,
