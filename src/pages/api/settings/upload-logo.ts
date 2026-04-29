@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import formidable from 'formidable'
 import fs from 'fs'
-import { uploadToGoogleDrive } from '@/lib/googleDrive'
+import { uploadFile } from '@/lib/biznetStorage'
 
 export const config = {
   api: {
@@ -24,18 +24,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'No file uploaded' })
     }
 
-    // Read file buffer
     const fileBuffer = fs.readFileSync(file.filepath)
-    const fileName = `logo_${Date.now()}_${file.originalFilename}`
-
-    // Upload to Google Drive
-    const { fileUrl } = await uploadToGoogleDrive({
-      fileBuffer,
-      fileName,
-      mimeType: file.mimetype || 'image/png',
+    
+    const fileUrl = await uploadFile(fileBuffer, file.originalFilename || 'logo', {
+      folder: 'settings/logos',
+      contentType: file.mimetype || 'image/png',
     })
 
-    // Clean up temporary file
     fs.unlinkSync(file.filepath)
 
     return res.status(200).json({ fileUrl })
