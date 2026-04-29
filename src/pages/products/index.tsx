@@ -1,149 +1,273 @@
 import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import AppLayout from '@/components/AppLayout'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Eye, Edit, Trash2, Package } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
 
 interface Product {
   id: number
   name: string
-  description: string
   speed: string
   price: number
-  status: string
+  description: string
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  useEffect(() => {
-    fetchProducts()
-  }, [])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({})
+  const { toast } = useToast()
 
   const fetchProducts = async () => {
     try {
+      setLoading(true)
       const res = await fetch('/api/products')
-      if (res.ok) {
-        const data = await res.json()
-        setProducts(data.products || [])
-      }
+      const data = await res.json()
+      setProducts(data.products || [])
     } catch (error) {
-      console.error('Failed to fetch products:', error)
+      toast({
+        title: 'Error',
+        description: 'Gagal memuat data produk',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      name: formData.get('name'),
+      speed: formData.get('speed'),
+      price: formData.get('price'),
+      description: formData.get('description'),
+    }
+
+    try {
+      const url = editMode ? `/api/products?id=${currentProduct.id}` : '/api/products'
+      const method = editMode ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) throw new Error('Gagal menyimpan data')
+
+      toast({
+        title: 'Berhasil',
+        description: editMode ? 'Paket layanan berhasil diperbarui' : 'Paket layanan baru berhasil ditambahkan',
+      })
+
+      setDialogOpen(false)
+      setEditMode(false)
+      setCurrentProduct({})
+      fetchProducts()
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menyimpan data paket layanan',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEdit = (product: Product) => {
+    setCurrentProduct(product)
+    setEditMode(true)
+    setDialogOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus paket layanan ini?')) return
+
+    try {
+      const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Gagal menghapus data')
+
+      toast({
+        title: 'Berhasil',
+        description: 'Paket layanan berhasil dihapus',
+      })
+      fetchProducts()
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menghapus paket layanan',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const filteredProducts = products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.speed.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary'> = {
-      active: 'default',
-      inactive: 'secondary',
-    }
-    const labels: Record<string, string> = {
-      active: 'Aktif',
-      inactive: 'Non-aktif',
-    }
-    return <Badge variant={variants[status] || 'secondary'}>{labels[status] || status}</Badge>
-  }
-
   return (
-    <ProtectedRoute allowedRoles={['admin']}>
+    <ProtectedRoute>
       <AppLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Paket Layanan</h1>
-              <p className="text-muted-foreground">
-                Kelola katalog produk dan paket internet
-              </p>
-            </div>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Tambah Paket
-            </Button>
+            <h1 className="text-3xl font-bold">Data Produk Layanan</h1>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open)
+              if (!open) {
+                setEditMode(false)
+                setCurrentProduct({})
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tambah Paket
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{editMode ? 'Edit Paket Layanan' : 'Tambah Paket Layanan Baru'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nama Paket</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        placeholder="Misal: Paket Home 10 Mbps"
+                        defaultValue={currentProduct.name}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="speed">Kecepatan</Label>
+                      <Input
+                        id="speed"
+                        name="speed"
+                        placeholder="Misal: 10 Mbps"
+                        defaultValue={currentProduct.speed}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="price">Harga (Rp)</Label>
+                      <Input
+                        id="price"
+                        name="price"
+                        type="number"
+                        placeholder="Misal: 250000"
+                        defaultValue={currentProduct.price}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="description">Deskripsi</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        placeholder="Detail paket layanan..."
+                        rows={4}
+                        defaultValue={currentProduct.description}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      Batal
+                    </Button>
+                    <Button type="submit">
+                      {editMode ? 'Perbarui' : 'Simpan'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari nama atau deskripsi paket..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+              <CardTitle>Daftar Paket Layanan</CardTitle>
+              <div className="flex items-center gap-2 mt-4">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari berdasarkan nama atau kecepatan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-md"
+                />
               </div>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Memuat data...
-                </div>
-              ) : filteredProducts.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? 'Tidak ada data yang cocok dengan pencarian' : 'Belum ada paket layanan terdaftar'}
-                </div>
+                <div className="text-center py-8 text-muted-foreground">Memuat data...</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Paket</TableHead>
+                      <TableHead>Kecepatan</TableHead>
+                      <TableHead>Harga</TableHead>
+                      <TableHead>Deskripsi</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableHead>Nama Paket</TableHead>
-                        <TableHead>Deskripsi</TableHead>
-                        <TableHead>Kecepatan</TableHead>
-                        <TableHead className="text-right">Harga/Bulan</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          Tidak ada data paket layanan
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProducts.map((product) => (
+                    ) : (
+                      filteredProducts.map((product) => (
                         <TableRow key={product.id}>
                           <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell className="max-w-[250px] truncate">{product.description}</TableCell>
-                          <TableCell className="font-mono">{product.speed}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(product.price)}</TableCell>
-                          <TableCell>{getStatusBadge(product.status)}</TableCell>
+                          <TableCell>{product.speed}</TableCell>
+                          <TableCell className="font-mono">
+                            Rp {new Intl.NumberFormat('id-ID').format(product.price)}
+                          </TableCell>
+                          <TableCell className="max-w-md truncate">{product.description || '-'}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" title="Lihat Detail">
-                                <Eye className="w-4 h-4" />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(product)}
+                              >
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" title="Edit">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" title="Hapus">
-                                <Trash2 className="w-4 h-4" />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(product.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
