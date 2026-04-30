@@ -84,7 +84,8 @@ export default async function handler(
 
         // 4. Generate Invoice for MRC (Prorated)
         const invoiceNumberMRC = `INV-MRC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
-        const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+        // Format as DATE only (YYYY-MM-DD) not DATETIME
+        const currentDate = new Date().toISOString().slice(0, 10)
         
         console.log('Creating MRC Invoice:', {
           invoiceNumber: invoiceNumberMRC,
@@ -108,6 +109,8 @@ export default async function handler(
             currentDate
           ]
         )
+
+        console.log('✅ MRC Invoice created successfully')
 
         // 5. Generate Invoice for OTC if amount > 0
         if (otc_amount && parseFloat(otc_amount.toString()) > 0) {
@@ -135,6 +138,8 @@ export default async function handler(
               currentDate
             ]
           )
+
+          console.log('✅ OTC Invoice created successfully')
         }
 
         // 6. Update customer status to active
