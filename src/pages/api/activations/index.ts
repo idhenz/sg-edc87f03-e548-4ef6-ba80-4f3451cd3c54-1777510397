@@ -84,7 +84,6 @@ export default async function handler(
 
         // 4. Generate Invoice for MRC (Prorated)
         const invoiceNumberMRC = `INV-MRC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
-        // Format as DATE only (YYYY-MM-DD) not DATETIME
         const currentDate = new Date().toISOString().slice(0, 10)
         
         console.log('Creating MRC Invoice:', {
@@ -113,8 +112,9 @@ export default async function handler(
         console.log('✅ MRC Invoice created successfully')
 
         // 5. Generate Invoice for OTC if amount > 0
+        let invoiceNumberOTC = null
         if (otc_amount && parseFloat(otc_amount.toString()) > 0) {
-          const invoiceNumberOTC = `INV-OTC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
+          invoiceNumberOTC = `INV-OTC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
           
           console.log('Creating OTC Invoice:', {
             invoiceNumber: invoiceNumberOTC,
@@ -154,7 +154,7 @@ export default async function handler(
           message: 'Aktivasi berhasil! Invoice MRC dan OTC telah dibuat.',
           invoices: {
             mrc: invoiceNumberMRC,
-            otc: otc_amount ? invoiceNumberOTC : null
+            otc: invoiceNumberOTC
           }
         })
       }
