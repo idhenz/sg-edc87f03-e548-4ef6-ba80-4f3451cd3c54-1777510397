@@ -6,40 +6,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { username, password } = req.body
-  console.log('[LOGIN] Attempting login for:', username)
+  const { email, password } = req.body
 
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username dan password harus diisi' })
+  console.log('[LOGIN] Attempting login for email:', email)
+
+  if (!email || !password) {
+    console.log('[LOGIN] Missing credentials')
+    return res.status(400).json({ message: 'Email dan password harus diisi' })
   }
 
   try {
-    // Simple database check - no hashing for now
+    console.log('[LOGIN] Querying database...')
     const users = await query(
-      'SELECT id, username, email, role FROM users WHERE username = ? AND password = ?',
-      [username, password]
-    ) as any[]
+      'SELECT id, name, email, role FROM users WHERE email = ? AND password = ?',
+      [email, password]
+    )
 
-    if (!users || users.length === 0) {
-      console.log('[LOGIN] Invalid credentials for:', username)
-      return res.status(401).json({ message: 'Username atau password salah' })
+    console.log('[LOGIN] Query result:', users.length, 'users found')
+
+    if (users.length === 0) {
+      console.log('[LOGIN] Invalid credentials')
+      return res.status(401).json({ message: 'Email atau password salah' })
     }
 
     const user = users[0]
-    console.log('[LOGIN] Success for:', user.username)
+    console.log('[LOGIN] Login successful for user:', user.email)
 
-    // Return user data directly - no token needed
     return res.status(200).json({
       success: true,
       user: {
         id: user.id,
-        username: user.username,
+        name: user.name,
         email: user.email,
         role: user.role
       }
     })
-  } catch (error) {
-    console.error('[LOGIN] Database error:', error)
-    return res.status(500).json({ message: 'Database error - pastikan koneksi database benar' })
+  } catch (error: any) {
+    console.error('[LOGIN] Database error:', error.message)
+    console.error('[LOGIN] Full error:', error)
+    return res.status(500).json({ 
+      message: 'Database error',
+      detail: error.message 
+    })
   }
 }

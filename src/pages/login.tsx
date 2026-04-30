@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
@@ -23,7 +23,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ email, password })
       })
 
       const data = await res.json()
@@ -32,21 +32,20 @@ export default function LoginPage() {
         login(data.user)
         toast({
           title: 'Login Berhasil',
-          description: `Selamat datang, ${data.user.username}`
+          description: `Selamat datang, ${data.user.name}`
         })
         router.push('/dashboard')
       } else {
         toast({
           title: 'Login Gagal',
-          description: data.message || 'Username atau password salah',
+          description: data.message || 'Email atau password salah',
           variant: 'destructive'
         })
       }
     } catch (error) {
-      console.error('[LOGIN] Error:', error)
       toast({
         title: 'Error',
-        description: 'Terjadi kesalahan jaringan',
+        description: 'Terjadi kesalahan saat login',
         variant: 'destructive'
       })
     } finally {
@@ -64,13 +63,14 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Masukkan username"
+                id="email"
+                name="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
                 required
               />
             </div>
@@ -78,6 +78,7 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

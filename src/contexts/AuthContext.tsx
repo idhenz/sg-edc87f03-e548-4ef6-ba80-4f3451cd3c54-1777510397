@@ -3,28 +3,25 @@ import { useRouter } from 'next/router'
 
 interface User {
   id: number
-  username: string
+  name: string
   email: string
   role: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (user: User) => void
+  login: (userData: User) => void
   logout: () => void
-  isAuthenticated: boolean
-  getAuthHeader: () => { [key: string]: string }
+  getAuthHeader: () => Record<string, string>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    // Load user from localStorage on mount
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
       try {
@@ -33,37 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('user')
       }
     }
-    setIsLoading(false)
   }, [])
 
   const login = (userData: User) => {
-    console.log('[AUTH] Login:', userData.username)
-    localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
+    localStorage.setItem('user', JSON.stringify(userData))
   }
 
   const logout = () => {
-    console.log('[AUTH] Logout')
-    localStorage.removeItem('user')
     setUser(null)
+    localStorage.removeItem('user')
     router.push('/login')
   }
 
-  // Generate auth header for API requests
   const getAuthHeader = () => {
     if (!user) return {}
-    const sessionData = Buffer.from(JSON.stringify(user)).toString('base64')
-    return {
-      'Authorization': `Session ${sessionData}`
-    }
-  }
-
-  if (isLoading) {
-    return null // or loading spinner
+    return { 'X-User-Session': JSON.stringify(user) }
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, getAuthHeader }}>
+    <AuthContext.Provider value={{ user, login, logout, getAuthHeader }}>
       {children}
     </AuthContext.Provider>
   )
