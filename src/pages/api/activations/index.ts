@@ -148,13 +148,15 @@ export default async function handler(
           ['active', customer_id]
         )
 
-        // 7. Insert activation record
+        // 7. Record activation
         await connection.execute(
-          `INSERT INTO activations 
-           (customer_id, product_id, vendor_id, action_type, activation_date, notes, otc_amount) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [customer_id, product_id, vendor_id, action_type, activation_date, notes, otc_amount || 0]
+          `INSERT INTO customer_activations 
+           (customer_id, product_id, vendor_id, activation_date, notes) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [customer_id, product_id, vendor_id, activation_date, notes]
         )
+
+        console.log('✅ Customer activation recorded successfully')
 
         return res.status(201).json({
           message: 'Activation successful',
