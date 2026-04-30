@@ -29,6 +29,15 @@ const unformatRupiah = (value: string): number => {
   return parseInt(value.replace(/\./g, '') || '0')
 }
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token')
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -42,7 +51,9 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/products')
+      const res = await fetch('/api/products', {
+        headers: getAuthHeaders()
+      })
       const data = await res.json()
       setProducts(data.products || [])
     } catch (error) {
@@ -76,7 +87,7 @@ export default function ProductsPage() {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -118,7 +129,10 @@ export default function ProductsPage() {
     if (!confirm('Apakah Anda yakin ingin menghapus paket layanan ini?')) return
 
     try {
-      const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/products?id=${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
       if (!res.ok) throw new Error('Gagal menghapus data')
 
       toast({

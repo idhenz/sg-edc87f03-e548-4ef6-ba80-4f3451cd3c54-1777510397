@@ -11,6 +11,14 @@ interface DashboardStats {
   monthlyRevenue: number
 }
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token')
+  return {
+    'Authorization': `Bearer ${token}`
+  }
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalCustomers: 0,
@@ -29,8 +37,8 @@ export default function DashboardPage() {
       setLoading(true)
       
       const [customersRes, productsRes] = await Promise.all([
-        fetch('/api/customers'),
-        fetch('/api/products'),
+        fetch('/api/customers', { headers: getAuthHeaders() }),
+        fetch('/api/products', { headers: getAuthHeaders() }),
       ])
 
       const customersData = await customersRes.json()

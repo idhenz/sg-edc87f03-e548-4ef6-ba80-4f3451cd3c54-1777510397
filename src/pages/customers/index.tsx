@@ -70,6 +70,15 @@ interface ActivationHistory {
   created_at: string
 }
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('auth_token')
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  }
+}
+
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -126,7 +135,9 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/customers')
+      const res = await fetch('/api/customers', {
+        headers: getAuthHeaders()
+      })
       const data = await res.json()
       setCustomers(data.customers || [])
     } catch (error) {
@@ -142,7 +153,9 @@ export default function CustomersPage() {
 
   const fetchProvinces = async () => {
     try {
-      const res = await fetch('/api/regions/provinces')
+      const res = await fetch('/api/regions/provinces', {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setProvinces(data.provinces || [])
     } catch (error) {
@@ -152,7 +165,9 @@ export default function CustomersPage() {
 
   const fetchRegencies = async (provinceId: string) => {
     try {
-      const res = await fetch(`/api/regions/regencies?province_id=${provinceId}`)
+      const res = await fetch(`/api/regions/regencies?province_id=${provinceId}`, {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setRegencies(data.regencies || [])
     } catch (error) {
@@ -162,7 +177,9 @@ export default function CustomersPage() {
 
   const fetchDistricts = async (regencyId: string) => {
     try {
-      const res = await fetch(`/api/regions/districts?regency_id=${regencyId}`)
+      const res = await fetch(`/api/regions/districts?regency_id=${regencyId}`, {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setDistricts(data.districts || [])
     } catch (error) {
@@ -172,7 +189,9 @@ export default function CustomersPage() {
 
   const fetchVillages = async (districtId: string) => {
     try {
-      const res = await fetch(`/api/regions/villages?district_id=${districtId}`)
+      const res = await fetch(`/api/regions/villages?district_id=${districtId}`, {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setVillages(data.villages || [])
     } catch (error) {
@@ -182,7 +201,9 @@ export default function CustomersPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products')
+      const res = await fetch('/api/products', {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setProducts(data.products || [])
     } catch (error) {
@@ -192,7 +213,9 @@ export default function CustomersPage() {
 
   const fetchVendors = async () => {
     try {
-      const res = await fetch('/api/vendors')
+      const res = await fetch('/api/vendors', {
+        headers: getAuthHeaders(),
+      })
       const data = await res.json()
       setVendors(data.vendors || [])
     } catch (error) {
@@ -203,7 +226,9 @@ export default function CustomersPage() {
   const fetchActivationHistory = async (customerId: number) => {
     try {
       setHistoryLoading(true)
-      const res = await fetch(`/api/activations?customer_id=${customerId}`)
+      const res = await fetch(`/api/activations?customer_id=${customerId}`, {
+        headers: getAuthHeaders()
+      })
       const data = await res.json()
       setActivationHistory(data.history || [])
     } catch (error) {
@@ -264,8 +289,12 @@ export default function CustomersPage() {
 
     try {
       setUploadingFile(fileType)
+      const token = localStorage.getItem('auth_token')
       const res = await fetch('/api/customers/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData,
       })
 
@@ -357,7 +386,7 @@ export default function CustomersPage() {
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -399,7 +428,7 @@ export default function CustomersPage() {
       setActivationSaving(true)
       const res = await fetch('/api/activations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       })
 
@@ -474,7 +503,10 @@ export default function CustomersPage() {
     if (!confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')) return
 
     try {
-      const res = await fetch(`/api/customers?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/customers?id=${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
       if (!res.ok) throw new Error('Gagal menghapus data')
 
       toast({
