@@ -315,9 +315,21 @@ export default function InvoicesOutgoingPage() {
 
   const generatePDF = async (invoice: Invoice) => {
     setIsGeneratingPdf(true)
-    setSelectedPdfInvoice(invoice)
+    setSelectedInvoice(invoice)
     
     try {
+      console.log('=== GENERATING PDF FOR INVOICE ===')
+      console.log('Invoice Data:', invoice)
+      console.log('Invoice Number:', invoice.invoice_number)
+      console.log('Customer Name:', invoice.customer_name)
+      console.log('Package Name:', invoice.package_name)
+      console.log('Amount:', invoice.amount)
+      console.log('Status:', invoice.status)
+      console.log('Created At:', invoice.created_at)
+      console.log('Due Date:', invoice.due_date)
+      console.log('Invoice Type:', invoice.invoice_type)
+      console.log('===================================')
+      
       // Ensure settings are loaded first
       let currentSettings = settings
       if (!currentSettings) {
@@ -350,6 +362,15 @@ export default function InvoicesOutgoingPage() {
       const logoUrl = settingsData?.logo_url || ''
       const whatsappContact = settingsData?.invoice_whatsapp || '-'
 
+      console.log('=== EXTRACTED SETTINGS DATA ===')
+      console.log('Company Name:', companyName)
+      console.log('Company Address:', companyAddress)
+      console.log('Company Phone:', companyPhone)
+      console.log('Company Email:', companyEmail)
+      console.log('Logo URL:', logoUrl)
+      console.log('WhatsApp Contact:', whatsappContact)
+      console.log('================================')
+      
       // Create temporary container for PDF content
       const tempDiv = document.createElement('div')
       tempDiv.style.position = 'absolute'
