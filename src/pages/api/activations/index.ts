@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth'
 
 // Helper function untuk generate invoice number
 const generateInvoiceNumber = (type: 'OTC' | 'MRC') => {
@@ -38,13 +39,35 @@ const calculateProratedMRC = (activationDate: string, monthlyPrice: number) => {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('=== ACTIVATION API CALLED ===')
+  console.log('Method:', req.method)
+  console.log('Headers:', req.headers)
+  console.log('Body:', req.body)
+  
   try {
+    // Verify authentication
+    const user = getAuthUser(req)
+    if (!user) {
+      console.error('Authentication failed - no valid token')
+      return res.status(401).json({ message: 'Unauthorized - Please login again' })
+    }
+    console.log('Authenticated user:', user.email)
+
     if (req.method === 'POST') {
       const { customer_id, product_id, vendor_id, action_type, activation_date, notes, otc_amount } = req.body
 
-      console.log('Activation request:', { customer_id, product_id, vendor_id, action_type, activation_date, otc_amount })
+      console.log('Parsed activation data:', { 
+        customer_id, 
+        product_id, 
+        vendor_id, 
+        action_type, 
+        activation_date, 
+        notes, 
+        otc_amount 
+      })
 
       if (!customer_id || !action_type || !activation_date) {
+        console.error('Validation failed - missing required fields')
         return res.status(400).json({ message: 'Data tidak lengkap: customer_id, action_type, dan activation_date wajib diisi' })
       }
 

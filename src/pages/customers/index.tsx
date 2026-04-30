@@ -477,19 +477,32 @@ export default function CustomersPage() {
       otc_amount: otcAmount ? parseInt(otcAmount.replace(/\./g, '')) : 0,
     }
 
+    console.log('Submitting activation data:', data)
+
     try {
       setActivationSaving(true)
+      
+      const headers = getAuthHeaders()
+      console.log('Request headers:', headers)
+      
       const res = await fetch('/api/activations', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: headers,
         body: JSON.stringify(data),
       })
 
-      if (!res.ok) throw new Error('Gagal menyimpan aktivasi')
+      console.log('Response status:', res.status)
+      
+      const responseData = await res.json()
+      console.log('Response data:', responseData)
+
+      if (!res.ok) {
+        throw new Error(responseData.message || 'Gagal menyimpan aktivasi')
+      }
 
       toast({
         title: 'Berhasil',
-        description: 'Aktivasi berhasil direkam dan invoice telah dibuat',
+        description: responseData.message || 'Aktivasi berhasil direkam dan invoice telah dibuat',
       })
 
       setActivationDialogOpen(false)
@@ -499,10 +512,11 @@ export default function CustomersPage() {
       setOtcAmount('')
       setProrataPreview(null)
       fetchCustomers()
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Activation submit error:', error)
       toast({
         title: 'Error',
-        description: 'Gagal menyimpan aktivasi',
+        description: error.message || 'Gagal menyimpan aktivasi',
         variant: 'destructive',
       })
     } finally {

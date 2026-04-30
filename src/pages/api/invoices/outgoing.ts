@@ -1,26 +1,35 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
+import { getAuthUser } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'GET') {
-    try {
-      const invoices = await query<any>(
-        `SELECT 
-          io.id, io.invoice_number, c.name as customer_name,
-          p.name as package_name, io.amount, io.invoice_date, 
-          io.due_date, io.payment_status
-         FROM invoices_outgoing io
-         LEFT JOIN customers c ON io.customer_id = c.id
-         LEFT JOIN products p ON io.package_id = p.id
-         ORDER BY io.invoice_date DESC`
-      )
-
-      return res.status(200).json({ invoices })
-    } catch (error) {
-      console.error('Database error:', error)
-      return res.status(500).json({ message: 'Gagal mengambil data invoice keluar' })
+  console.log('=== INVOICE OUTGOING API CALLED ===')
+  console.log('Method:', req.method)
+  
+  try {
+    // Verify authentication
+    const user = getAuthUser(req)
+    if (!user) {
+      console.error('Authentication failed')
+      return res.status(401).json({ message: 'Unauthorized' })
     }
-  }
+    console.log('Authenticated user:', user.email)
 
-  return res.status(405).json({ message: 'Method not allowed' })
+    if (req.method === 'GET') {
+      console.log('Fetching invoices outgoing...')
+      const invoices = await query('SELECT * FROM invoices_outgoing ORDER BY created_at DESC')
+      console.log('Fetched invoices count:', invoices.length)
+      return res.status(200).json({ invoices })
+    }
+
+    return res.status(405).json({ message: 'Method not allowed' })
+  } catch (error: any) {
+    console.error('Invoice Outgoing API Error:', error.message)
+    console.error('Stack:', error.stack)
+    return res.status(500).json({ 
+      message: 'Terjadi kesalahan pada server', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
 }
