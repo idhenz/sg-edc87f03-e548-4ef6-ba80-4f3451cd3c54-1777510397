@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
+import { getUserFromRequest } from '@/lib/auth'
 import formidable from 'formidable'
 import fs from 'fs'
 import { uploadFile } from '@/lib/biznetStorage'
@@ -9,11 +10,10 @@ export const config = {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Temporarily remove auth check to debug
-  // const user = getAuthUser(req)
-  // if (!user) {
-  //   return res.status(401).json({ message: 'Unauthorized' })
-  // }
+  const user = getUserFromRequest(req)
+  if (!user) {
+    return res.status(401).json({ message: 'Unauthorized' })
+  }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' })
@@ -88,7 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       transfer_from ? transfer_from : null,
       proofUrl ? proofUrl : null,
       notes ? notes : null,
-      null, 
+      user.id, 
       'verified'
     ]
   )

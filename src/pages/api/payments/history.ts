@@ -1,13 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
+import { getUserFromRequest } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    // Temporarily remove auth check to debug
-    // const user = getAuthUser(req)
-    // if (!user) {
-    //   return res.status(401).json({ message: 'Unauthorized' })
-    // }
+    const user = getUserFromRequest(req)
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
 
     if (req.method !== 'GET') {
       return res.status(405).json({ message: 'Method not allowed' })

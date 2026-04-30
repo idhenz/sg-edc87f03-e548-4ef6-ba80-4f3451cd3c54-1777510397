@@ -1,18 +1,17 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
+import { getUserFromRequest } from '@/lib/auth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    // Temporarily remove auth check to debug
-    // const user = getAuthUser(req)
-    // if (!user) {
-    //   return res.status(401).json({ message: 'Unauthorized' })
-    // }
+    const user = getUserFromRequest(req)
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
 
     if (req.method === 'GET') {
       const { month, year, id } = req.query
       
-      // Fetch single invoice by ID with full details including tax and total_amount
       if (id) {
         const invoices = await query(
           `SELECT io.*, COALESCE(SUM(pc.amount), 0) as paid_amount 
@@ -27,17 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return res.status(404).json({ message: 'Invoice tidak ditemukan' })
         }
         
-        console.log('=== API INVOICE DATA ===')
-        console.log('Invoice ID:', id)
-        console.log('Amount:', invoices[0].amount)
-        console.log('Tax:', invoices[0].tax)
-        console.log('Total Amount:', invoices[0].total_amount)
-        console.log('========================')
-        
         return res.status(200).json({ invoice: invoices[0] })
       }
       
-      // Fetch all invoices with optional filters
       let queryStr = 'SELECT io.*, COALESCE(SUM(pc.amount), 0) as paid_amount FROM invoices_outgoing io LEFT JOIN payment_confirmations pc ON io.id = pc.invoice_id WHERE 1=1'
       const params: any[] = []
       
