@@ -154,7 +154,10 @@ export default function InvoicesOutgoingPage() {
     try {
       const res = await fetch('/api/settings')
       const data = await res.json()
-      setSettings(data)
+      // API returns array [{}], we need the first object
+      const settingsData = Array.isArray(data) ? data[0] : data
+      setSettings(settingsData)
+      console.log('Settings fetched:', settingsData)
     } catch (error) {
       console.error('Error fetching settings:', error)
     }
@@ -319,7 +322,9 @@ export default function InvoicesOutgoingPage() {
       let currentSettings = settings
       if (!currentSettings) {
         const res = await fetch('/api/settings')
-        currentSettings = await res.json()
+        const data = await res.json()
+        // Handle both array [{}] and object {} response
+        currentSettings = Array.isArray(data) ? data[0] : data
         setSettings(currentSettings)
       }
 
@@ -333,279 +338,149 @@ export default function InvoicesOutgoingPage() {
         setBanks(currentBanks)
       }
 
-      console.log('Settings for PDF:', currentSettings)
-      console.log('Banks for PDF:', currentBanks)
+      console.log('Settings loaded for PDF:', currentSettings)
+      console.log('Banks loaded for PDF:', currentBanks)
 
-      // Dynamic import to avoid SSR issues
-      const html2pdf = (await import('html2pdf.js')).default
+      // Create temporary container for PDF content
+      const tempDiv = document.createElement('div')
+      tempDiv.style.position = 'absolute'
+      tempDiv.style.left = '-9999px'
+      tempDiv.style.width = '794px' // A4 width in pixels at 96 DPI
+      tempDiv.style.background = 'white'
+      tempDiv.style.padding = '40px'
       
-      const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    @page { margin: 20mm; }
-    body { 
-      font-family: 'Arial', sans-serif;
-      margin: 0;
-      padding: 0;
-      font-size: 14px;
-      color: #333;
-    }
-    .watermark {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-45deg);
-      font-size: 120px;
-      font-weight: bold;
-      opacity: 0.05;
-      color: ${invoice.status === 'paid' ? '#22c55e' : '#ef4444'};
-      z-index: -1;
-    }
-    table { width: 100%; border-collapse: collapse; }
-    .header-table td { padding: 5px 0; vertical-align: top; }
-    .logo-cell { width: 50%; }
-    .invoice-cell { width: 50%; text-align: right; }
-    .logo { max-width: 180px; max-height: 70px; display: block; }
-    .company-name { font-size: 22px; font-weight: bold; color: #1e40af; margin: 10px 0 5px 0; }
-    .company-info { font-size: 12px; color: #666; line-height: 1.6; }
-    .invoice-title { font-size: 36px; font-weight: bold; color: #1e40af; margin: 0; }
-    .invoice-details { font-size: 12px; margin-top: 10px; line-height: 1.8; }
-    .invoice-details strong { color: #000; }
-    .status-badge {
-      display: inline-block;
-      padding: 5px 15px;
-      margin-top: 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: bold;
-      background: ${invoice.status === 'paid' ? '#dcfce7' : invoice.status === 'partial' ? '#fef3c7' : '#fee2e2'};
-      color: ${invoice.status === 'paid' ? '#166534' : invoice.status === 'partial' ? '#92400e' : '#991b1b'};
-    }
-    .divider {
-      border: none;
-      border-top: 3px solid #1e40af;
-      margin: 20px 0;
-    }
-    .section-title {
-      font-size: 11px;
-      font-weight: bold;
-      color: #666;
-      text-transform: uppercase;
-      margin: 20px 0 8px 0;
-    }
-    .customer-name {
-      font-size: 18px;
-      font-weight: bold;
-      color: #000;
-      padding: 15px;
-      background: #f8fafc;
-      border-radius: 5px;
-    }
-    .items-table {
-      width: 100%;
-      margin: 20px 0;
-      border-collapse: collapse;
-    }
-    .items-table thead {
-      background: #1e40af;
-      color: white;
-    }
-    .items-table th {
-      padding: 12px;
-      text-align: left;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .items-table th.right { text-align: right; }
-    .items-table td {
-      padding: 12px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .items-table td.right { text-align: right; font-weight: bold; }
-    .totals-table {
-      width: 350px;
-      float: right;
-      margin-top: 10px;
-    }
-    .totals-table td {
-      padding: 8px 10px;
-      font-size: 13px;
-    }
-    .totals-table .label { color: #666; }
-    .totals-table .amount { text-align: right; font-weight: bold; }
-    .grand-total-row {
-      border-top: 2px solid #1e40af;
-      padding-top: 10px !important;
-    }
-    .grand-total-row .label { 
-      font-size: 15px; 
-      font-weight: bold; 
-      color: #000; 
-    }
-    .grand-total-row .amount { 
-      font-size: 18px; 
-      color: #1e40af; 
-    }
-    .payment-box {
-      clear: both;
-      margin-top: 30px;
-      padding: 20px;
-      background: linear-gradient(135deg, #1e40af, #3b82f6);
-      color: white;
-      border-radius: 8px;
-    }
-    .payment-title {
-      font-size: 15px;
-      font-weight: bold;
-      margin-bottom: 15px;
-    }
-    .bank-item {
-      background: rgba(255,255,255,0.15);
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-    }
-    .bank-name { font-size: 11px; opacity: 0.9; }
-    .bank-number { font-size: 14px; font-weight: bold; margin: 5px 0; }
-    .bank-holder { font-size: 11px; opacity: 0.9; }
-    .confirmation-box {
-      border-top: 1px solid rgba(255,255,255,0.3);
-      margin-top: 15px;
-      padding-top: 15px;
-      font-size: 12px;
-      line-height: 1.7;
-    }
-    .footer {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      text-align: center;
-      font-size: 11px;
-      color: #999;
-    }
-  </style>
-</head>
-<body>
-  <div class="watermark">${invoice.status === 'paid' ? 'LUNAS' : 'BELUM LUNAS'}</div>
+      tempDiv.innerHTML = `
+        <div style="font-family: Arial, sans-serif; color: #333; position: relative;">
+          <!-- Watermark -->
+          <div style="position: absolute; top: 400px; left: 50%; transform: translateX(-50%) rotate(-45deg); font-size: 100px; font-weight: 600; opacity: 0.04; color: ${invoice.status === 'paid' ? '#22c55e' : '#ef4444'}; z-index: 0; white-space: nowrap;">
+            ${invoice.status === 'paid' ? 'LUNAS' : 'BELUM LUNAS'}
+          </div>
 
-  <!-- Header -->
-  <table class="header-table">
-    <tr>
-      <td class="logo-cell">
-        ${currentSettings?.logo_url ? `<img src="${currentSettings.logo_url}" class="logo" alt="Logo" />` : ''}
-        <div class="company-name">${currentSettings?.company_name || 'PT. Internet Service Provider'}</div>
-        <div class="company-info">
-          ${currentSettings?.company_address || 'Alamat Perusahaan'}<br/>
-          Telp: ${currentSettings?.company_phone || '-'}<br/>
-          Email: ${currentSettings?.company_email || '-'}
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px;">
+            <div style="flex: 1;">
+              ${currentSettings?.logo_url ? `<img src="${currentSettings.logo_url}" style="max-width: 180px; max-height: 70px; margin-bottom: 10px;" />` : ''}
+              <div style="font-size: 20px; font-weight: 600; color: #1e40af; margin-bottom: 8px;">${currentSettings?.company_name || 'PT. Internet Service Provider'}</div>
+              <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
+                ${currentSettings?.company_address || 'Alamat Perusahaan'}<br/>
+                Telp: ${currentSettings?.company_phone || '-'}<br/>
+                Email: ${currentSettings?.company_email || '-'}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 32px; font-weight: 700; color: #1e40af; margin-bottom: 10px;">INVOICE</div>
+              <div style="font-size: 12px; color: #475569; line-height: 1.8;">
+                <span style="font-weight: 600;">No Invoice:</span> ${invoice.invoice_number}<br/>
+                <span style="font-weight: 600;">Tanggal:</span> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'}<br/>
+                <span style="font-weight: 600;">Jatuh Tempo:</span> ${new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}<br/>
+                <span style="font-weight: 600;">Jenis:</span> ${invoice.invoice_type}
+              </div>
+              <div style="display: inline-block; padding: 5px 15px; margin-top: 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: ${invoice.status === 'paid' ? '#dcfce7' : invoice.status === 'partial' ? '#fef3c7' : '#fee2e2'}; color: ${invoice.status === 'paid' ? '#166534' : invoice.status === 'partial' ? '#92400e' : '#991b1b'};">
+                ${invoice.status === 'paid' ? 'Lunas' : invoice.status === 'partial' ? 'Lunas Sebagian' : 'Belum Lunas'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Bill To -->
+          <div style="margin: 25px 0;">
+            <div style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Tagihan Kepada</div>
+            <div style="font-size: 17px; font-weight: 600; padding: 15px; background: #f8fafc; border-radius: 5px; color: #1e293b;">${invoice.customer_name}</div>
+          </div>
+
+          <!-- Items Table -->
+          <table style="width: 100%; border-collapse: collapse; margin: 25px 0;">
+            <thead>
+              <tr style="background: #3b82f6; color: white;">
+                <th style="padding: 12px; text-align: left; font-size: 12px; font-weight: 600;">Deskripsi Layanan</th>
+                <th style="padding: 12px; text-align: left; font-size: 12px; font-weight: 600;">Periode</th>
+                <th style="padding: 12px; text-align: right; font-size: 12px; font-weight: 600;">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #475569;">${invoice.package_name}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #475569;">${invoice.invoice_type}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600; color: #1e293b;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div style="text-align: right; margin-top: 20px;">
+            <div style="display: inline-block; min-width: 350px;">
+              <div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px;">
+                <span style="color: #64748b;">Subtotal</span>
+                <span style="font-weight: 600; color: #1e293b;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</span>
+              </div>
+              ${invoice.paid_amount && Number(invoice.paid_amount) > 0 ? `
+              <div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px;">
+                <span style="color: #64748b;">Terbayar</span>
+                <span style="font-weight: 600; color: #22c55e;">-${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.paid_amount))}</span>
+              </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; padding: 12px 10px; font-size: 14px; border-top: 2px solid #3b82f6; margin-top: 8px;">
+                <span style="font-weight: 600; color: #1e293b;">${invoice.status === 'paid' ? 'Total Terbayar' : 'Total Tagihan'}</span>
+                <span style="font-weight: 700; font-size: 17px; color: #1e40af;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount) - Number(invoice.paid_amount || 0))}</span>
+              </div>
+            </div>
+          </div>
+
+          ${invoice.status !== 'paid' ? `
+          <!-- Payment Info -->
+          <div style="margin-top: 40px; padding: 20px; background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 15px;">🏦 Informasi Pembayaran</div>
+            ${currentBanks.slice(0, 4).map(bank => `
+              <div style="background: rgba(255,255,255,0.12); padding: 12px; margin-bottom: 10px; border-radius: 5px;">
+                <div style="font-size: 11px; opacity: 0.9;">${bank.bank_name}</div>
+                <div style="font-size: 14px; font-weight: 600; margin: 5px 0;">${bank.account_number}</div>
+                <div style="font-size: 11px; opacity: 0.9;">a/n ${bank.account_holder}</div>
+              </div>
+            `).join('')}
+            <div style="border-top: 1px solid rgba(255,255,255,0.25); margin-top: 15px; padding-top: 15px; font-size: 12px; line-height: 1.7;">
+              <span style="font-weight: 600;">📱 Konfirmasi Pembayaran:</span><br/>
+              Silakan konfirmasi pembayaran Anda melalui:<br/>
+              <span style="font-weight: 600;">WhatsApp:</span> ${currentSettings?.confirmation_contact || '-'}<br/>
+              <span style="font-weight: 600;">Email:</span> ${currentSettings?.confirmation_email || currentSettings?.company_email || '-'}<br/>
+              <em style="font-size: 11px; opacity: 0.9;">Sertakan bukti transfer dan nomor invoice</em>
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Footer -->
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.6;">
+            Invoice ini dibuat secara otomatis oleh sistem.<br/>
+            Terima kasih atas kepercayaan Anda menggunakan layanan kami.<br/>
+            <em>Dokumen ini sah dan diproses oleh komputer tanpa memerlukan tanda tangan basah.</em>
+          </div>
         </div>
-      </td>
-      <td class="invoice-cell">
-        <div class="invoice-title">INVOICE</div>
-        <div class="invoice-details">
-          <strong>No Invoice:</strong> ${invoice.invoice_number}<br/>
-          <strong>Tanggal:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'}<br/>
-          <strong>Jatuh Tempo:</strong> ${new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}<br/>
-          <strong>Jenis:</strong> ${invoice.invoice_type}
-        </div>
-        <div class="status-badge">${invoice.status === 'paid' ? 'Lunas' : invoice.status === 'partial' ? 'Lunas Sebagian' : 'Belum Lunas'}</div>
-      </td>
-    </tr>
-  </table>
-
-  <hr class="divider" />
-
-  <!-- Bill To -->
-  <div class="section-title">Tagihan Kepada</div>
-  <div class="customer-name">${invoice.customer_name}</div>
-
-  <!-- Items -->
-  <table class="items-table">
-    <thead>
-      <tr>
-        <th>Deskripsi Layanan</th>
-        <th>Periode</th>
-        <th class="right">Jumlah</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>${invoice.package_name}</td>
-        <td>${invoice.invoice_type}</td>
-        <td class="right">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- Totals -->
-  <table class="totals-table">
-    <tr>
-      <td class="label">Subtotal</td>
-      <td class="amount">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</td>
-    </tr>
-    ${invoice.paid_amount && Number(invoice.paid_amount) > 0 ? `
-    <tr>
-      <td class="label">Terbayar</td>
-      <td class="amount" style="color: #22c55e;">-${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.paid_amount))}</td>
-    </tr>
-    ` : ''}
-    <tr class="grand-total-row">
-      <td class="label">${invoice.status === 'paid' ? 'Total Terbayar' : 'Total Tagihan'}</td>
-      <td class="amount">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount) - Number(invoice.paid_amount || 0))}</td>
-    </tr>
-  </table>
-
-  ${invoice.status !== 'paid' ? `
-  <!-- Payment Info -->
-  <div class="payment-box">
-    <div class="payment-title">🏦 Informasi Pembayaran</div>
-    ${currentBanks.slice(0, 4).map(bank => `
-      <div class="bank-item">
-        <div class="bank-name">${bank.bank_name}</div>
-        <div class="bank-number">${bank.account_number}</div>
-        <div class="bank-holder">a/n ${bank.account_holder}</div>
-      </div>
-    `).join('')}
-    <div class="confirmation-box">
-      <strong>📱 Konfirmasi Pembayaran:</strong><br/>
-      Silakan konfirmasi pembayaran Anda melalui:<br/>
-      <strong>WhatsApp:</strong> ${currentSettings?.confirmation_contact || '-'}<br/>
-      <strong>Email:</strong> ${currentSettings?.confirmation_email || currentSettings?.company_email || '-'}<br/>
-      <em style="font-size: 11px;">Sertakan bukti transfer dan nomor invoice</em>
-    </div>
-  </div>
-  ` : ''}
-
-  <!-- Footer -->
-  <div class="footer">
-    Invoice ini dibuat secara otomatis oleh sistem.<br/>
-    Terima kasih atas kepercayaan Anda menggunakan layanan kami.<br/>
-    <em>Dokumen ini sah dan diproses oleh komputer tanpa memerlukan tanda tangan basah.</em>
-  </div>
-</body>
-</html>
       `
 
-      const opt: any = {
-        margin: 0,
-        filename: `Invoice-${invoice.invoice_number}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          logging: false
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'portrait'
-        }
-      }
+      document.body.appendChild(tempDiv)
 
-      const pdfBlob = await html2pdf().set(opt).from(htmlContent).output('blob')
+      // Generate canvas from HTML
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      })
+
+      document.body.removeChild(tempDiv)
+
+      // Create PDF from canvas
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const imgWidth = 210 // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      
+      const pdfBlob = pdf.output('blob')
       const blobUrl = URL.createObjectURL(pdfBlob)
       
       setPdfBlob(blobUrl)
