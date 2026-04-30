@@ -317,19 +317,15 @@ export default function InvoicesOutgoingPage() {
 
   const generatePDF = async (invoice: Invoice) => {
     setIsGeneratingPdf(true)
-    setSelectedInvoice(invoice)
+    setSelectedPdfInvoice(invoice)
     
     try {
       console.log('=== GENERATING PDF FOR INVOICE ===')
-      console.log('Invoice Data:', invoice)
+      console.log('Invoice ID:', invoice.id)
       console.log('Invoice Number:', invoice.invoice_number)
-      console.log('Customer Name:', invoice.customer_name)
-      console.log('Package Name:', invoice.package_name)
-      console.log('Amount:', invoice.amount)
-      console.log('Status:', invoice.status)
-      console.log('Created At:', invoice.created_at)
-      console.log('Due Date:', invoice.due_date)
-      console.log('Invoice Type:', invoice.invoice_type)
+      console.log('Amount (Subtotal):', invoice.amount)
+      console.log('Tax:', invoice.tax)
+      console.log('Total Amount:', invoice.total_amount)
       console.log('===================================')
       
       // Ensure settings are loaded first
@@ -337,7 +333,6 @@ export default function InvoicesOutgoingPage() {
       if (!currentSettings) {
         const res = await fetch('/api/settings')
         const data = await res.json()
-        // Handle both array [{}] and object {} response
         currentSettings = Array.isArray(data) ? data[0] : data
         setSettings(currentSettings)
       }
@@ -352,10 +347,7 @@ export default function InvoicesOutgoingPage() {
         setBanks(currentBanks)
       }
 
-      console.log('Settings loaded for PDF:', currentSettings)
-      console.log('Banks loaded for PDF:', currentBanks)
-
-      // Extract settings data - handle nested structure
+      // Extract settings data
       const settingsData = currentSettings?.settings || currentSettings
       const companyName = settingsData?.isp_name || 'PT. Internet Service Provider'
       const companyAddress = settingsData?.isp_address || 'Alamat Perusahaan'
@@ -363,21 +355,28 @@ export default function InvoicesOutgoingPage() {
       const companyEmail = settingsData?.isp_email || '-'
       const logoUrl = settingsData?.logo_url || ''
       const whatsappContact = settingsData?.invoice_whatsapp || '-'
+      const taxPercentage = settingsData?.tax_percentage || 0
 
-      console.log('=== EXTRACTED SETTINGS DATA ===')
-      console.log('Company Name:', companyName)
-      console.log('Company Address:', companyAddress)
-      console.log('Company Phone:', companyPhone)
-      console.log('Company Email:', companyEmail)
-      console.log('Logo URL:', logoUrl)
-      console.log('WhatsApp Contact:', whatsappContact)
-      console.log('================================')
+      // Calculate amounts
+      const amount = parseFloat(invoice.amount)
+      const tax = parseFloat(invoice.tax || '0')
+      const totalAmount = parseFloat(invoice.total_amount || invoice.amount)
+      const paid = parseFloat(invoice.paid_amount || '0')
+      const remaining = totalAmount - paid
+
+      console.log('=== PDF CALCULATIONS ===')
+      console.log('Subtotal:', amount)
+      console.log('Tax:', tax)
+      console.log('Total:', totalAmount)
+      console.log('Paid:', paid)
+      console.log('Remaining:', remaining)
+      console.log('========================')
       
       // Create temporary container for PDF content
       const tempDiv = document.createElement('div')
       tempDiv.style.position = 'absolute'
       tempDiv.style.left = '-9999px'
-      tempDiv.style.width = '794px' // A4 width in pixels at 96 DPI
+      tempDiv.style.width = '794px'
       tempDiv.style.background = 'white'
       tempDiv.style.padding = '40px'
       
@@ -431,8 +430,8 @@ export default function InvoicesOutgoingPage() {
             <tbody>
               <tr>
                 <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #475569;">${invoice.package_name}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #475569;">${invoice.invoice_type}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600; color: #1e293b;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #475569;">${invoice.invoice_type || 'MRC'}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600; color: #1e293b;">Rp ${amount.toLocaleString('id-ID')}</td>
               </tr>
             </tbody>
           </table>
@@ -442,33 +441,49 @@ export default function InvoicesOutgoingPage() {
             <div style="display: inline-block; min-width: 350px;">
               <div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px;">
                 <span style="color: #64748b;">Subtotal</span>
-                <span style="font-weight: 600; color: #1e293b;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</span>
+                <span style="font-weight: 600; color: #1e293b;">Rp ${amount.toLocaleString('id-ID')}</span>
               </div>
-              ${invoice.paid_amount && Number(invoice.paid_amount) > 0 ? `
+              
+              <div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px;">
+                <span style="color: #64748b;">Tax (${taxPercentage}%)</span>
+                <span style="font-weight: 600; color: #1e293b;">Rp ${tax.toLocaleString('id-ID')}</span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; padding: 12px 10px; font-size: 14px; border-top: 2px solid #3b82f6; margin-top: 8px;">
+                <span style="font-weight: 600; color: #1e293b;">Total Tagihan</span>
+                <span style="font-weight: 700; font-size: 17px; color: #1e40af;">Rp ${totalAmount.toLocaleString('id-ID')}</span>
+              </div>
+              
+              ${paid > 0 ? `
               <div style="display: flex; justify-content: space-between; padding: 8px 10px; font-size: 13px;">
                 <span style="color: #64748b;">Terbayar</span>
-                <span style="font-weight: 600; color: #22c55e;">-${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.paid_amount))}</span>
+                <span style="font-weight: 600; color: #22c55e;">-Rp ${paid.toLocaleString('id-ID')}</span>
               </div>
               ` : ''}
+
+              ${paid > 0 && remaining > 0 ? `
               <div style="display: flex; justify-content: space-between; padding: 12px 10px; font-size: 14px; border-top: 2px solid #3b82f6; margin-top: 8px;">
-                <span style="font-weight: 600; color: #1e293b;">${invoice.status === 'paid' ? 'Total Terbayar' : 'Total Tagihan'}</span>
-                <span style="font-weight: 700; font-size: 17px; color: #1e40af;">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount) - Number(invoice.paid_amount || 0))}</span>
+                <span style="font-weight: 600; color: #1e293b;">Sisa Tagihan</span>
+                <span style="font-weight: 700; font-size: 17px; color: #ea580c;">Rp ${remaining.toLocaleString('id-ID')}</span>
               </div>
+              ` : ''}
             </div>
           </div>
 
           ${invoice.status !== 'paid' ? `
           <!-- Payment Info -->
-          <div style="margin-top: 40px; padding: 20px; background: linear-gradient(135deg, #3b82f6, #60a5fa); color: white; border-radius: 8px;">
-            <div style="font-size: 14px; font-weight: 600; margin-bottom: 15px;">🏦 Informasi Pembayaran</div>
+          <div style="margin-top: 40px; padding: 20px; border: 2px solid #3b82f6; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 15px; color: #1e40af;">🏦 Informasi Pembayaran</div>
+
             ${currentBanks.slice(0, 4).map(bank => `
-              <div style="background: rgba(255,255,255,0.12); padding: 12px; margin-bottom: 10px; border-radius: 5px;">
-                <div style="font-size: 11px; opacity: 0.9;">${bank.bank_name}</div>
-                <div style="font-size: 14px; font-weight: 600; margin: 5px 0;">${bank.account_number}</div>
-                <div style="font-size: 11px; opacity: 0.9;">a/n ${bank.account_holder}</div>
+              <div style="background: #eff6ff; padding: 12px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #bfdbfe;">
+                <div style="font-size: 11px; color: #64748b;">${bank.bank_name}</div>
+                <div style="font-size: 14px; font-weight: 600; margin: 5px 0; color: #1e293b;">${bank.account_number}</div>
+                <div style="font-size: 11px; color: #64748b;">a/n ${bank.account_holder}</div>
               </div>
             `).join('')}
-            <div style="border-top: 1px solid rgba(255,255,255,0.25); margin-top: 15px; padding-top: 15px; font-size: 12px; line-height: 1.7;">
+
+            <div style="border-top: 2px solid #bfdbfe; margin-top: 15px; padding-top: 15px; font-size: 12px; line-height: 1.7; color: #475569;">
               <span style="font-weight: 600;">📱 Konfirmasi Pembayaran:</span><br/>
               Silakan konfirmasi pembayaran Anda melalui:<br/>
               <span style="font-weight: 600;">WhatsApp:</span> ${whatsappContact}<br/>
@@ -507,7 +522,7 @@ export default function InvoicesOutgoingPage() {
         format: 'a4'
       })
 
-      const imgWidth = 210 // A4 width in mm
+      const imgWidth = 210
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)

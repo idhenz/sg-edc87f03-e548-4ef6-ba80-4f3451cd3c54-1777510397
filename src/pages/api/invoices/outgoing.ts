@@ -12,18 +12,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const { month, year, id } = req.query
       
-      // Fetch single invoice by ID with full details
+      // Fetch single invoice by ID with full details including tax and total_amount
       if (id) {
         const invoices = await query(
-          `SELECT io.* 
+          `SELECT io.*, COALESCE(SUM(pc.amount), 0) as paid_amount 
            FROM invoices_outgoing io
-           WHERE io.id = ?`,
+           LEFT JOIN payment_confirmations pc ON io.id = pc.invoice_id
+           WHERE io.id = ?
+           GROUP BY io.id`,
           [id]
         )
         
         if (!invoices || invoices.length === 0) {
           return res.status(404).json({ message: 'Invoice tidak ditemukan' })
         }
+        
+        console.log('=== API INVOICE DATA ===')
+        console.log('Invoice ID:', id)
+        console.log('Amount:', invoices[0].amount)
+        console.log('Tax:', invoices[0].tax)
+        console.log('Total Amount:', invoices[0].total_amount)
+        console.log('========================')
         
         return res.status(200).json({ invoice: invoices[0] })
       }
