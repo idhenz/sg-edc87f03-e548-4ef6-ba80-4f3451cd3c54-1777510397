@@ -1,40 +1,38 @@
 import { useState, FormEvent } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/router'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Wifi } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const { login, user } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const { login } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
-  if (user) {
-    router.push('/dashboard')
-    return null
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError('')
-    setIsLoading(true)
+    setLoading(true)
 
-    console.log('[LOGIN DEBUG] Attempting login with email:', email)
+    console.log('[LOGIN DEBUG] Attempting login with username:', username)
+    console.log('[LOGIN DEBUG] Password length:', password.length)
+
+    const loginData = {
+      username: username,
+      password: password
+    }
+    console.log('[LOGIN DEBUG] Sending login data:', { username: loginData.username, password: '***' })
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(loginData)
       })
 
       console.log('[LOGIN DEBUG] Login response status:', res.status)
@@ -73,56 +71,45 @@ export default function LoginPage() {
         variant: 'destructive'
       })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/20 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-            <Wifi className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl font-bold">ISP Management</CardTitle>
-          <CardDescription>Masuk ke sistem operasional</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Login</CardTitle>
+          <CardDescription>Masuk ke sistem manajemen operasional</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@isp.co.id"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                name="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Masukkan username"
                 required
-                disabled={isLoading}
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
-                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Masukkan password"
                 required
-                disabled={isLoading}
               />
             </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Memproses...' : 'Masuk'}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Loading...' : 'Login'}
             </Button>
           </form>
         </CardContent>
