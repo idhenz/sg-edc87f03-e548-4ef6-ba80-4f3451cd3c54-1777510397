@@ -42,32 +42,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'POST') {
       const { customer_id, product_id, vendor_id, action_type, activation_date, notes, otc_amount } = req.body
 
+      console.log('Activation request:', { customer_id, product_id, vendor_id, action_type, activation_date, otc_amount })
+
       if (!customer_id || !action_type || !activation_date) {
-        return res.status(400).json({ message: 'Data tidak lengkap' })
+        return res.status(400).json({ message: 'Data tidak lengkap: customer_id, action_type, dan activation_date wajib diisi' })
       }
 
       // Insert ke tabel activations (log history)
-      await query(
-        'INSERT INTO activations (customer_id, product_id, vendor_id, action_type, activation_date, notes) VALUES (?, ?, ?, ?, ?, ?)',
-        [customer_id, product_id || null, vendor_id || null, action_type, activation_date, notes || null]
-      )
+      try {
+        await query(
+          'INSERT INTO activations (customer_id, product_id, vendor_id, action_type, activation_date, notes) VALUES (?, ?, ?, ?, ?, ?)',
+          [customer_id, product_id || null, vendor_id || null, action_type, activation_date, notes || null]
+        )
+        console.log('Activation record inserted successfully')
+      } catch (error: any) {
+        console.error('Error inserting activation:', error.message)
+        throw new Error(`Gagal insert aktivasi: ${error.message}`)
+      }
 
       // Update status di tabel customers
-      if (action_type === 'termination') {
-        // Jika berhenti berlangganan, set product & vendor ke NULL, status inactive
-        await query(
-          'UPDATE customers SET current_product_id = NULL, current_vendor_id = NULL, subscription_status = "inactive" WHERE id = ?',
-          [customer_id]
-        )
-      } else {
-        // Aktivasi, upgrade, atau downgrade -> update product & vendor, status active
-        await query(
-          'UPDATE customers SET current_product_id = ?, current_vendor_id = ?, subscription_status = "active" WHERE id = ?',
-          [product_id, vendor_id, customer_id]
-        )
+      try {
+        if (action_type === 'termination') {
+          await query(
+            'UPDATE customers SET current_product_id = NULL, current_vendor_id = NULL, subscription_status = "inactive" WHERE id = ?',
+            [customer_id]
+          )
+          console.log('Customer status updated to inactive')
+        } else {
+          await query(
+            'UPDATE customers SET current_product_id = ?, current_vendor_id = ?, subscription_status = "active" WHERE id = ?',
+            [product_id, vendor_id, customer_id]
+          )
+          console.log('Customer status updated to active')
+        }
+      } catch (error: any) {
+        console.error('Error updating customer status:', error.message)
+        throw new Error(`Gagal update status pelanggan: ${error.message}`)
+      }
 
-        // AUTO-GENERATE INVOICES (hanya untuk aktivasi baru)
-        if (action_type === 'activation' && product_id) {
+      // AUTO-GENERATE INVOICES (hanya untuk aktivasi baru)
+      if (action_type === 'activation' && product_id) {
+        try {
           // Ambil data customer dan product
           const customers = await query(
             'SELECT name FROM customers WHERE id = ?',
@@ -78,6 +93,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             [product_id]
           )
 
+          console.log('Customer data:', customers)
+          console.log('Product data:', products)
+
           if (customers.length > 0 && products.length > 0) {
             const customer = customers[0]
             const product = products[0]
@@ -86,48 +104,108 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (otc_amount && otc_amount > 0) {
               const otcInvoiceNumber = generateInvoiceNumber('OTC')
               const otcDueDate = new Date(activation_date)
-              otcDueDate.setDate(otcDueDate.getDate() + 7) // Due date 7 hari dari aktivasi
+              otcDueDate.setDate(otcDueDate.getDate() + 7)
 
-              await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [
-                  otcInvoiceNumber,
-                  customer.name,
-                  `${product.name} - Biaya Registrasi`,
-                  otcDueDate.toISOString().split('T')[0],
-                  otc_amount,
-                  'pending',
-                  'OTC',
-                  'Biaya registrasi awal - Auto-generated'
-                ]
-              )
+              console.log('Creating OTC Invoice:', {
+                invoice_number: otcInvoiceNumber,
+                customer_name: customer.name,
+                amount: otc_amount,
+                due_date: otcDueDate.toISOString().split('T')[0]
+              })
+
+              // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
+              try {
+                await query(
+                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                  [
+                    otcInvoiceNumber,
+                    customer.name,
+                    `${product.name} - Biaya Registrasi`,
+                    otcDueDate.toISOString().split('T')[0],
+                    otc_amount,
+                    'pending',
+                    'OTC',
+                    'Biaya registrasi awal - Auto-generated'
+                  ]
+                )
+                console.log('OTC Invoice created successfully')
+              } catch (invoiceError: any) {
+                console.error('Error creating OTC invoice with invoice_type:', invoiceError.message)
+                // Fallback: insert tanpa kolom invoice_type
+                await query(
+                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  [
+                    otcInvoiceNumber,
+                    customer.name,
+                    `${product.name} - Biaya Registrasi (OTC)`,
+                    otcDueDate.toISOString().split('T')[0],
+                    otc_amount,
+                    'pending',
+                    'Biaya registrasi awal - Auto-generated'
+                  ]
+                )
+                console.log('OTC Invoice created (without invoice_type column)')
+              }
             }
 
             // 2. Generate Invoice MRC (Monthly Recurring Charge) - Prorata
             const mrcInvoiceNumber = generateInvoiceNumber('MRC')
             const prorata = calculateProratedMRC(activation_date, product.price)
             
-            // Due date MRC = akhir bulan
             const activationDateObj = new Date(activation_date)
             const year = activationDateObj.getFullYear()
             const month = activationDateObj.getMonth()
             const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
             const mrcDueDate = new Date(year, month, lastDayOfMonth)
 
-            await query(
-              'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-              [
-                mrcInvoiceNumber,
-                customer.name,
-                `${product.name} - MRC Bulan Pertama (Prorata)`,
-                mrcDueDate.toISOString().split('T')[0],
-                prorata.proratedAmount,
-                'pending',
-                'MRC',
-                `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
-              ]
-            )
+            console.log('Creating MRC Invoice:', {
+              invoice_number: mrcInvoiceNumber,
+              customer_name: customer.name,
+              amount: prorata.proratedAmount,
+              due_date: mrcDueDate.toISOString().split('T')[0],
+              prorata: prorata
+            })
+
+            // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
+            try {
+              await query(
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                  mrcInvoiceNumber,
+                  customer.name,
+                  `${product.name} - MRC Bulan Pertama (Prorata)`,
+                  mrcDueDate.toISOString().split('T')[0],
+                  prorata.proratedAmount,
+                  'pending',
+                  'MRC',
+                  `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
+                ]
+              )
+              console.log('MRC Invoice created successfully')
+            } catch (invoiceError: any) {
+              console.error('Error creating MRC invoice with invoice_type:', invoiceError.message)
+              // Fallback: insert tanpa kolom invoice_type
+              await query(
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [
+                  mrcInvoiceNumber,
+                  customer.name,
+                  `${product.name} - MRC Bulan Pertama (Prorata)`,
+                  mrcDueDate.toISOString().split('T')[0],
+                  prorata.proratedAmount,
+                  'pending',
+                  `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
+                ]
+              )
+              console.log('MRC Invoice created (without invoice_type column)')
+            }
+          } else {
+            console.warn('Customer or product not found for invoice generation')
           }
+        } catch (invoiceError: any) {
+          console.error('Error generating invoices:', invoiceError.message)
+          // Jangan throw error, invoice generation adalah optional
+          console.log('Continuing without invoice generation')
         }
       }
 
@@ -164,7 +242,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ message: 'Method not allowed' })
   } catch (error: any) {
-    console.error('Activation API Error:', error)
-    return res.status(500).json({ message: 'Terjadi kesalahan pada server', error: error.message })
+    console.error('Activation API Error:', error.message)
+    console.error('Stack trace:', error.stack)
+    return res.status(500).json({ 
+      message: 'Terjadi kesalahan pada server', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
   }
 }

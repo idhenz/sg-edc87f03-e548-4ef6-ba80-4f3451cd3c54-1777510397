@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS invoices_outgoing (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- OPTIONAL: Add invoice_type column if your table already exists but doesn't have this column
+-- Run this if you get error about invoice_type column:
+-- ALTER TABLE invoices_outgoing ADD COLUMN invoice_type VARCHAR(20) DEFAULT 'MRC' COMMENT 'OTC (One Time Charge) or MRC (Monthly Recurring Charge)';
+
 -- 7. Table: Mails Incoming (Surat Masuk)
 CREATE TABLE IF NOT EXISTS mails_incoming (
   id INT AUTO_INCREMENT PRIMARY KEY,
