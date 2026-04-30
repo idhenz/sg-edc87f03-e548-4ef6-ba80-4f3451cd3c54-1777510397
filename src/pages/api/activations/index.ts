@@ -50,21 +50,28 @@ export default async function handler(
       }
 
       if (action_type === 'activation') {
-        // 1. Get customer data
+        // 1. Get settings for tax percentage
+        const [settingsRows] = await connection.execute(
+          'SELECT tax_percentage FROM settings LIMIT 1'
+        )
+        const settings = (settingsRows as any[])[0]
+        const taxPercentage = settings?.tax_percentage || 0
+
+        // 2. Get customer data
         const [customerRows] = await connection.execute(
           'SELECT * FROM customers WHERE id = ?',
           [customer_id]
         )
         const customerData = (customerRows as any[])[0]
 
-        // 2. Get product data
+        // 3. Get product data
         const [productRows] = await connection.execute(
           'SELECT * FROM products WHERE id = ?',
           [product_id]
         )
         const productData = (productRows as any[])[0]
 
-        // 3. Calculate prorated MRC
+        // 4. Calculate prorated MRC
         const activationDay = new Date(activation_date).getDate()
         const daysInMonth = new Date(
           new Date(activation_date).getFullYear(),
@@ -74,21 +81,28 @@ export default async function handler(
         const remainingDays = daysInMonth - activationDay + 1
         const proratedAmount = (productData.price / daysInMonth) * remainingDays
 
+        // Calculate tax and total for MRC
+        const mrcTax = (proratedAmount * taxPercentage) / 100
+        const mrcTotal = proratedAmount + mrcTax
+
         console.log('Prorated calculation:', {
           activationDay,
           daysInMonth,
           remainingDays,
           monthlyPrice: productData.price,
-          proratedAmount
+          proratedAmount,
+          taxPercentage,
+          tax: mrcTax,
+          totalAmount: mrcTotal
         })
 
-        // 4. Calculate dates
-        const currentDate = new Date().toISOString().slice(0, 10) // created_at
+        // 5. Calculate dates
+        const currentDate = new Date().toISOString().slice(0, 10)
         const dueDateObj = new Date()
-        dueDateObj.setDate(dueDateObj.getDate() + 14) // H+14 dari hari ini
+        dueDateObj.setDate(dueDateObj.getDate() + 14)
         const dueDate = dueDateObj.toISOString().slice(0, 10)
 
-        // 5. Generate Invoice for MRC (Prorated)
+        // 6. Generate Invoice for MRC (Prorated)
         const invoiceNumberMRC = `INV-MRC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
         
         console.log('Creating MRC Invoice:', {
@@ -97,28 +111,36 @@ export default async function handler(
           packageName: `${productData.name} - MRC Bulan Pertama (Prorata)`,
           createdAt: currentDate,
           dueDate: dueDate,
-          amount: proratedAmount
+          amount: proratedAmount,
+          tax: mrcTax,
+          totalAmount: mrcTotal
         })
 
         await connection.execute(
           `INSERT INTO invoices_outgoing 
-           (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
-           VALUES (?, ?, ?, ?, ?, 'pending', 'MRC', ?)`,
+           (invoice_number, customer_name, package_name, due_date, amount, tax, total_amount, status, invoice_type, created_at) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'MRC', ?)`,
           [
             invoiceNumberMRC,
             customerData.name,
             `${productData.name} - MRC Bulan Pertama (Prorata)`,
             dueDate,
             proratedAmount,
+            mrcTax,
+            mrcTotal,
             currentDate
           ]
         )
 
         console.log('✅ MRC Invoice created successfully')
 
-        // 6. Generate Invoice for OTC if amount > 0
+        // 7. Generate Invoice for OTC if amount > 0
         let invoiceNumberOTC = null
         if (otc_amount && parseFloat(otc_amount.toString()) > 0) {
+          const otcAmount = parseFloat(otc_amount.toString())
+          const otcTax = (otcAmount * taxPercentage) / 100
+          const otcTotal = otcAmount + otcTax
+
           invoiceNumberOTC = `INV-OTC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
           
           console.log('Creating OTC Invoice:', {
@@ -127,19 +149,23 @@ export default async function handler(
             packageName: `${productData.name} - Biaya Instalasi`,
             createdAt: currentDate,
             dueDate: dueDate,
-            amount: otc_amount
+            amount: otcAmount,
+            tax: otcTax,
+            totalAmount: otcTotal
           })
 
           await connection.execute(
             `INSERT INTO invoices_outgoing 
-             (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
-             VALUES (?, ?, ?, ?, ?, 'pending', 'OTC', ?)`,
+             (invoice_number, customer_name, package_name, due_date, amount, tax, total_amount, status, invoice_type, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'OTC', ?)`,
             [
               invoiceNumberOTC,
               customerData.name,
               `${productData.name} - Biaya Instalasi`,
               dueDate,
-              otc_amount,
+              otcAmount,
+              otcTax,
+              otcTotal,
               currentDate
             ]
           )
@@ -147,7 +173,7 @@ export default async function handler(
           console.log('✅ OTC Invoice created successfully')
         }
 
-        // 7. Update customer status to active
+        // 8. Update customer status to active
         await connection.execute(
           'UPDATE customers SET status = ? WHERE id = ?',
           ['active', customer_id]
