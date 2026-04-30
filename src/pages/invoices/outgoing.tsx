@@ -45,6 +45,7 @@ interface Bank {
   bank_name: string
   account_number: string
   account_holder: string
+  is_active?: boolean
 }
 
 interface Settings {
@@ -63,6 +64,9 @@ export default function InvoicesOutgoingPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
+  const [paymentAmount, setPaymentAmount] = useState('')
   
   // Payment confirmation states
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
@@ -652,7 +656,7 @@ export default function InvoicesOutgoingPage() {
         </html>
       `
 
-      const opt = {
+      const opt: any = {
         margin: 0,
         filename: `Invoice-${invoice.invoice_number}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
