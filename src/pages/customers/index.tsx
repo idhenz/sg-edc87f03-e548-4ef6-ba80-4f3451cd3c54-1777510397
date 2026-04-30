@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, FileText, Zap, History, User, Building2, Users } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, Zap, History, User, Building2, Users, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -78,6 +78,14 @@ export default function CustomersPage() {
   const [editMode, setEditMode] = useState(false)
   const [currentCustomer, setCurrentCustomer] = useState<Partial<Customer>>({})
   const { toast } = useToast()
+
+  // Filter states
+  const [filterProduct, setFilterProduct] = useState<string>('all')
+  const [filterVendor, setFilterVendor] = useState<string>('all')
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const [provinces, setProvinces] = useState<Region[]>([])
   const [regencies, setRegencies] = useState<Region[]>([])
@@ -524,12 +532,65 @@ export default function CustomersPage() {
     }
   }
 
-  const filteredCustomers = customers.filter(
-    (c) =>
+  const filteredCustomers = customers.filter((c) => {
+    const matchesSearch = 
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.phone.includes(searchTerm)
-  )
+    
+    const matchesProduct = filterProduct === 'all' || 
+      (filterProduct === 'none' && !c.current_product_id) ||
+      c.current_product_id?.toString() === filterProduct
+    
+    const matchesVendor = filterVendor === 'all' || 
+      (filterVendor === 'none' && !c.current_vendor_id) ||
+      c.current_vendor_id?.toString() === filterVendor
+    
+    return matchesSearch && matchesProduct && matchesVendor
+  })
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex)
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i)
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        pages.push('...')
+        pages.push(currentPage - 1)
+        pages.push(currentPage)
+        pages.push(currentPage + 1)
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const renderFileUpload = (fileType: string, label: string, currentFile: string | null) => {
     const isUploading = uploadingFile === fileType
@@ -800,6 +861,49 @@ export default function CustomersPage() {
                   className="max-w-md"
                 />
               </div>
+              <div className="flex items-center gap-3 mt-3">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={filterProduct} onValueChange={setFilterProduct}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter Paket Layanan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Paket</SelectItem>
+                    <SelectItem value="none">Belum Ada Paket</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id.toString()}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterVendor} onValueChange={setFilterVendor}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter Vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Vendor</SelectItem>
+                    <SelectItem value="none">Belum Ada Vendor</SelectItem>
+                    {vendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id.toString()}>
+                        {vendor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(filterProduct !== 'all' || filterVendor !== 'all') && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setFilterProduct('all')
+                      setFilterVendor('all')
+                    }}
+                  >
+                    Reset Filter
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -818,14 +922,14 @@ export default function CustomersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCustomers.length === 0 ? (
+                    {paginatedCustomers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Tidak ada data pelanggan
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredCustomers.map((customer) => (
+                      paginatedCustomers.map((customer) => (
                         <TableRow key={customer.id}>
                           <TableCell className="font-medium">{customer.name}</TableCell>
                           <TableCell>
@@ -890,6 +994,51 @@ export default function CustomersPage() {
                     )}
                   </TableBody>
                 </Table>
+              )}
+              
+              {filteredCustomers.length > itemsPerPage && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredCustomers.length)} dari {filteredCustomers.length} pelanggan
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    
+                    {getPageNumbers().map((page, index) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handlePageChange(page as number)}
+                          className="min-w-[36px]"
+                        >
+                          {page}
+                        </Button>
+                      )
+                    ))}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

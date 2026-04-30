@@ -1,9 +1,54 @@
+import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import AppLayout from '@/components/AppLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Package, FileText, DollarSign } from 'lucide-react'
 
+interface DashboardStats {
+  totalCustomers: number
+  totalProducts: number
+  pendingInvoices: number
+  monthlyRevenue: number
+}
+
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalCustomers: 0,
+    totalProducts: 0,
+    pendingInvoices: 0,
+    monthlyRevenue: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchDashboardStats()
+  }, [])
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true)
+      
+      const [customersRes, productsRes] = await Promise.all([
+        fetch('/api/customers'),
+        fetch('/api/products'),
+      ])
+
+      const customersData = await customersRes.json()
+      const productsData = await productsRes.json()
+
+      setStats({
+        totalCustomers: customersData.customers?.length || 0,
+        totalProducts: productsData.products?.length || 0,
+        pendingInvoices: 0,
+        monthlyRevenue: 0,
+      })
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <ProtectedRoute>
       <AppLayout>
@@ -24,8 +69,10 @@ export default function DashboardPage() {
                 <Users className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
-                <p className="text-xs text-muted-foreground mt-1">Aktif saat ini</p>
+                <div className="text-2xl font-bold">
+                  {loading ? '...' : stats.totalCustomers}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Terdaftar di sistem</p>
               </CardContent>
             </Card>
 
@@ -37,7 +84,9 @@ export default function DashboardPage() {
                 <DollarSign className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold font-mono">Rp 0</div>
+                <div className="text-2xl font-bold font-mono">
+                  Rp {new Intl.NumberFormat('id-ID').format(stats.monthlyRevenue)}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">Dari invoice lunas</p>
               </CardContent>
             </Card>
@@ -50,7 +99,9 @@ export default function DashboardPage() {
                 <FileText className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">
+                  {loading ? '...' : stats.pendingInvoices}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">Menunggu pembayaran</p>
               </CardContent>
             </Card>
@@ -63,7 +114,9 @@ export default function DashboardPage() {
                 <Package className="w-4 h-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">
+                  {loading ? '...' : stats.totalProducts}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">Produk tersedia</p>
               </CardContent>
             </Card>
