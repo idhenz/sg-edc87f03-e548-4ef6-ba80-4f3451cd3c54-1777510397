@@ -64,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (existingRecord && existingRecord.length > 0) {
           await query(
             `UPDATE pppoe_secrets SET 
-              pppoe_id = ?,
               service = ?,
               profile = ?,
               local_address = ?,
@@ -72,11 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               is_active = ?,
               last_login = ?,
               uptime = ?,
-              caller_id = ?,
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ?`,
             [
-              secret['.id'],
               secret.service || 'pppoe',
               secret.profile || null,
               secret['local-address'] || null,
@@ -84,7 +81,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               isActive,
               isActive && activeConn ? new Date() : null,
               activeConn?.uptime || null,
-              activeConn?.['caller-id'] || null,
               existingRecord[0].id
             ]
           );
@@ -92,11 +88,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } else {
           await query(
             `INSERT INTO pppoe_secrets 
-              (router_id, pppoe_id, username, service, profile, local_address, remote_address, is_active, last_login, uptime, caller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (router_id, username, service, profile, local_address, remote_address, is_active, last_login, uptime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               router_id,
-              secret['.id'],
               secret.name,
               secret.service || 'pppoe',
               secret.profile || null,
@@ -104,8 +99,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               secret['remote-address'] || null,
               isActive,
               isActive && activeConn ? new Date() : null,
-              activeConn?.uptime || null,
-              activeConn?.['caller-id'] || null
+              activeConn?.uptime || null
             ]
           );
           syncedCount++;
@@ -125,9 +119,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         total: secrets.length
       });
     } catch (error: any) {
+      console.error('MikroTik connection error:', error);
       return res.status(400).json({
         success: false,
-        message: 'Sinkronisasi gagal: ' + (error.message || 'Unknown error')
+        message: 'Sinkronisasi gagal: ' + (error.message || 'Tidak dapat terhubung ke router')
       });
     }
   } catch (error) {
