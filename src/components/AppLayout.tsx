@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
   { label: 'Produk', href: '/products', icon: Package },
   { label: 'Invoice Masuk', href: '/invoices/incoming', icon: FileText },
   { label: 'Invoice Keluar', href: '/invoices/outgoing', icon: FileText },
+  { label: 'Bank', href: '/banks', icon: Landmark, adminOnly: true },
   { label: 'Surat Masuk', href: '/mails/incoming', icon: Mail, adminOnly: true },
   { label: 'Surat Keluar', href: '/mails/outgoing', icon: Mail, adminOnly: true },
   { label: 'Pengaturan', href: '/settings', icon: Settings, adminOnly: true },
