@@ -29,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Fetch all invoices with optional filters
-      let queryStr = 'SELECT * FROM invoices_outgoing WHERE 1=1'
+      let queryStr = 'SELECT io.*, COALESCE(SUM(pc.amount), 0) as paid_amount FROM invoices_outgoing io LEFT JOIN payment_confirmations pc ON io.id = pc.invoice_id WHERE 1=1'
       const params: any[] = []
       
       if (month && year) {
@@ -40,22 +40,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         params.push(parseInt(year as string))
       }
       
-      queryStr += ' ORDER BY id DESC'
+      queryStr += ' GROUP BY io.id ORDER BY io.created_at DESC, io.id DESC'
       
       const invoices = await query(queryStr, params)
       return res.status(200).json({ invoices })
     }
 
     if (req.method === 'POST') {
-      const { invoice_number, customer_name, package_name, due_date, amount, status, invoice_type } = req.body
+      const { invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at } = req.body
 
       if (!invoice_number || !customer_name || !package_name || !due_date || !amount) {
-        return res.status(400).json({ message: 'Data tidak lengkap' })
+        return res.status(400).json({ message: 'Data invoice tidak lengkap' })
       }
 
       await query(
-        'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [invoice_number, customer_name, package_name, due_date, amount, status || 'pending', invoice_type || 'MRC']
+        `INSERT INTO invoices_outgoing 
+         (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [invoice_number, customer_name, package_name, due_date, amount, status || 'pending', invoice_type, created_at || new Date().toISOString().split('T')[0]]
       )
 
       return res.status(201).json({ message: 'Invoice berhasil ditambahkan' })
@@ -63,15 +65,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'PUT') {
       const { id } = req.query
-      const { invoice_number, customer_name, package_name, due_date, amount, status, invoice_type } = req.body
+      const { invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at } = req.body
 
       if (!id) {
         return res.status(400).json({ message: 'ID invoice tidak ditemukan' })
       }
 
       await query(
-        'UPDATE invoices_outgoing SET invoice_number = ?, customer_name = ?, package_name = ?, due_date = ?, amount = ?, status = ?, invoice_type = ? WHERE id = ?',
-        [invoice_number, customer_name, package_name, due_date, amount, status, invoice_type || 'MRC', id]
+        `UPDATE invoices_outgoing 
+         SET invoice_number = ?, customer_name = ?, package_name = ?, due_date = ?, 
+             amount = ?, status = ?, invoice_type = ?, created_at = ?
+         WHERE id = ?`,
+        [invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at, id]
       )
 
       return res.status(200).json({ message: 'Invoice berhasil diperbarui' })

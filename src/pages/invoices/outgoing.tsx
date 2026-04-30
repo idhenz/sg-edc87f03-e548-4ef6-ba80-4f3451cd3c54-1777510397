@@ -88,7 +88,8 @@ export default function InvoicesOutgoingPage() {
     due_date: '',
     amount: '',
     status: 'pending',
-    invoice_type: 'MRC'
+    invoice_type: 'MRC',
+    created_at: new Date().toISOString().split('T')[0]
   })
   const [paymentData, setPaymentData] = useState({
     bank_id: '',
@@ -201,7 +202,8 @@ export default function InvoicesOutgoingPage() {
           due_date: '',
           amount: '',
           status: 'pending',
-          invoice_type: 'MRC'
+          invoice_type: 'MRC',
+          created_at: new Date().toISOString().split('T')[0]
         })
         fetchInvoices()
       } else {
@@ -268,7 +270,8 @@ export default function InvoicesOutgoingPage() {
       due_date: invoice.due_date,
       amount: invoice.amount,
       status: invoice.status,
-      invoice_type: invoice.invoice_type
+      invoice_type: invoice.invoice_type,
+      created_at: invoice.created_at || new Date().toISOString().split('T')[0]
     })
     setShowForm(true)
   }
@@ -787,6 +790,29 @@ export default function InvoicesOutgoingPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <Label htmlFor="created_at">Tanggal Invoice</Label>
+                  <Input
+                    id="created_at"
+                    type="date"
+                    value={formData.created_at}
+                    onChange={(e) => setFormData({ ...formData, created_at: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="due_date">Tanggal Jatuh Tempo</Label>
+                  <Input
+                    id="due_date"
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label htmlFor="customer_name">Nama Customer</Label>
                   <Input
                     id="customer_name"
@@ -807,16 +833,6 @@ export default function InvoicesOutgoingPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="due_date">Tanggal Jatuh Tempo</Label>
-                  <Input
-                    id="due_date"
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    required
-                  />
-                </div>
                 <div>
                   <Label htmlFor="amount">Jumlah (Rp)</Label>
                   <Input
