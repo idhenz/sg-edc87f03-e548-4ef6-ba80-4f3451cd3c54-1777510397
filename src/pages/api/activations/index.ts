@@ -1,10 +1,46 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
 
+// Helper function untuk generate invoice number
+const generateInvoiceNumber = (type: 'OTC' | 'MRC') => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+  return `INV-${type}-${year}${month}-${random}`
+}
+
+// Helper function untuk hitung prorata MRC
+const calculateProratedMRC = (activationDate: string, monthlyPrice: number) => {
+  const activation = new Date(activationDate)
+  const year = activation.getFullYear()
+  const month = activation.getMonth()
+  
+  // Akhir bulan
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  const activationDay = activation.getDate()
+  
+  // Sisa hari (termasuk hari aktivasi)
+  const remainingDays = lastDay - activationDay + 1
+  
+  // Harga per hari
+  const pricePerDay = monthlyPrice / lastDay
+  
+  // MRC Prorata
+  const proratedAmount = Math.round(pricePerDay * remainingDays)
+  
+  return {
+    totalDays: lastDay,
+    remainingDays,
+    pricePerDay: Math.round(pricePerDay),
+    proratedAmount
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'POST') {
-      const { customer_id, product_id, vendor_id, action_type, activation_date, notes } = req.body
+      const { customer_id, product_id, vendor_id, action_type, activation_date, notes, otc_amount } = req.body
 
       if (!customer_id || !action_type || !activation_date) {
         return res.status(400).json({ message: 'Data tidak lengkap' })
@@ -29,9 +65,73 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'UPDATE customers SET current_product_id = ?, current_vendor_id = ?, subscription_status = "active" WHERE id = ?',
           [product_id, vendor_id, customer_id]
         )
+
+        // AUTO-GENERATE INVOICES (hanya untuk aktivasi baru)
+        if (action_type === 'activation' && product_id) {
+          // Ambil data customer dan product
+          const customers = await query(
+            'SELECT name FROM customers WHERE id = ?',
+            [customer_id]
+          )
+          const products = await query(
+            'SELECT name, price FROM products WHERE id = ?',
+            [product_id]
+          )
+
+          if (customers.length > 0 && products.length > 0) {
+            const customer = customers[0]
+            const product = products[0]
+
+            // 1. Generate Invoice OTC (One Time Charge)
+            if (otc_amount && otc_amount > 0) {
+              const otcInvoiceNumber = generateInvoiceNumber('OTC')
+              const otcDueDate = new Date(activation_date)
+              otcDueDate.setDate(otcDueDate.getDate() + 7) // Due date 7 hari dari aktivasi
+
+              await query(
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                  otcInvoiceNumber,
+                  customer.name,
+                  `${product.name} - Biaya Registrasi`,
+                  otcDueDate.toISOString().split('T')[0],
+                  otc_amount,
+                  'pending',
+                  'OTC',
+                  'Biaya registrasi awal - Auto-generated'
+                ]
+              )
+            }
+
+            // 2. Generate Invoice MRC (Monthly Recurring Charge) - Prorata
+            const mrcInvoiceNumber = generateInvoiceNumber('MRC')
+            const prorata = calculateProratedMRC(activation_date, product.price)
+            
+            // Due date MRC = akhir bulan
+            const activationDateObj = new Date(activation_date)
+            const year = activationDateObj.getFullYear()
+            const month = activationDateObj.getMonth()
+            const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+            const mrcDueDate = new Date(year, month, lastDayOfMonth)
+
+            await query(
+              'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                mrcInvoiceNumber,
+                customer.name,
+                `${product.name} - MRC Bulan Pertama (Prorata)`,
+                mrcDueDate.toISOString().split('T')[0],
+                prorata.proratedAmount,
+                'pending',
+                'MRC',
+                `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
+              ]
+            )
+          }
+        }
       }
 
-      return res.status(201).json({ message: 'Aktivasi berhasil direkam' })
+      return res.status(201).json({ message: 'Aktivasi berhasil direkam dan invoice telah dibuat' })
     }
 
     if (req.method === 'GET') {

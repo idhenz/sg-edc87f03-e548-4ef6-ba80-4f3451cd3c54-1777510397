@@ -125,6 +125,15 @@ export default function CustomersPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [activationSaving, setActivationSaving] = useState(false)
+  const [selectedProductId, setSelectedProductId] = useState<string>('')
+  const [activationDate, setActivationDate] = useState<string>('')
+  const [otcAmount, setOtcAmount] = useState<string>('')
+  const [prorataPreview, setProrataPreview] = useState<{
+    totalDays: number
+    remainingDays: number
+    pricePerDay: number
+    proratedAmount: number
+  } | null>(null)
 
   // History states
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
@@ -222,6 +231,49 @@ export default function CustomersPage() {
       console.error('Failed to fetch vendors:', error)
     }
   }
+
+  const calculateProrataPreview = (productId: string, activationDateStr: string) => {
+    if (!productId || !activationDateStr) {
+      setProrataPreview(null)
+      return
+    }
+
+    const product = products.find(p => p.id.toString() === productId)
+    if (!product) {
+      setProrataPreview(null)
+      return
+    }
+
+    const activation = new Date(activationDateStr)
+    const year = activation.getFullYear()
+    const month = activation.getMonth()
+    
+    // Akhir bulan
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const activationDay = activation.getDate()
+    
+    // Sisa hari (termasuk hari aktivasi)
+    const remainingDays = lastDay - activationDay + 1
+    
+    // Harga per hari
+    const pricePerDay = Math.round(product.price / lastDay)
+    
+    // MRC Prorata
+    const proratedAmount = pricePerDay * remainingDays
+    
+    setProrataPreview({
+      totalDays: lastDay,
+      remainingDays,
+      pricePerDay,
+      proratedAmount
+    })
+  }
+
+  useEffect(() => {
+    if (selectedProductId && activationDate) {
+      calculateProrataPreview(selectedProductId, activationDate)
+    }
+  }, [selectedProductId, activationDate, products])
 
   const fetchActivationHistory = async (customerId: number) => {
     try {
@@ -417,11 +469,12 @@ export default function CustomersPage() {
     
     const data = {
       customer_id: activationCustomer?.id,
-      product_id: formData.get('product_id') || null,
+      product_id: selectedProductId || null,
       vendor_id: formData.get('vendor_id') || null,
       action_type: formData.get('action_type'),
-      activation_date: formData.get('activation_date'),
+      activation_date: activationDate,
       notes: formData.get('notes'),
+      otc_amount: otcAmount ? parseInt(otcAmount.replace(/\./g, '')) : 0,
     }
 
     try {
@@ -436,11 +489,15 @@ export default function CustomersPage() {
 
       toast({
         title: 'Berhasil',
-        description: 'Aktivasi berhasil direkam',
+        description: 'Aktivasi berhasil direkam dan invoice telah dibuat',
       })
 
       setActivationDialogOpen(false)
       setActivationCustomer(null)
+      setSelectedProductId('')
+      setActivationDate('')
+      setOtcAmount('')
+      setProrataPreview(null)
       fetchCustomers()
     } catch (error) {
       toast({
@@ -526,6 +583,10 @@ export default function CustomersPage() {
   const handleActivation = (customer: Customer) => {
     setActivationCustomer(customer)
     setActivationDialogOpen(true)
+    setSelectedProductId('')
+    setActivationDate('')
+    setOtcAmount('')
+    setProrataPreview(null)
   }
 
   const handleViewHistory = (customer: Customer) => {
@@ -1077,7 +1138,7 @@ export default function CustomersPage() {
 
           {/* Activation Dialog */}
           <Dialog open={activationDialogOpen} onOpenChange={setActivationDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Aktivasi / Ubah Paket Layanan</DialogTitle>
               </DialogHeader>
@@ -1102,14 +1163,14 @@ export default function CustomersPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="product_id">Paket Layanan</Label>
-                  <Select name="product_id">
+                  <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih paket (opsional untuk berhenti)" />
                     </SelectTrigger>
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id.toString()}>
-                          {product.name} - {product.speed}
+                          {product.name} - {product.speed} - Rp {product.price.toLocaleString('id-ID')}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1134,11 +1195,46 @@ export default function CustomersPage() {
                   <Label htmlFor="activation_date">Tanggal Aktivasi *</Label>
                   <Input
                     id="activation_date"
-                    name="activation_date"
                     type="date"
+                    value={activationDate}
+                    onChange={(e) => setActivationDate(e.target.value)}
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="otc_amount">Biaya Registrasi / OTC (Opsional)</Label>
+                  <Input
+                    id="otc_amount"
+                    type="text"
+                    placeholder="0"
+                    value={otcAmount}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '')
+                      const formatted = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+                      setOtcAmount(formatted)
+                    }}
+                  />
+                  {otcAmount && (
+                    <p className="text-sm text-muted-foreground">
+                      Rp {parseInt(otcAmount.replace(/\./g, '')).toLocaleString('id-ID')}
+                    </p>
+                  )}
+                </div>
+                
+                {prorataPreview && (
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <p className="font-semibold text-sm">Preview Invoice MRC (Prorata):</p>
+                    <div className="text-sm space-y-1">
+                      <p>Total hari bulan ini: {prorataPreview.totalDays} hari</p>
+                      <p>Sisa hari (termasuk aktivasi): {prorataPreview.remainingDays} hari</p>
+                      <p>Harga per hari: Rp {prorataPreview.pricePerDay.toLocaleString('id-ID')}</p>
+                      <p className="font-semibold pt-2 border-t">
+                        Total MRC Bulan Pertama: Rp {prorataPreview.proratedAmount.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="notes">Catatan</Label>
                   <Textarea
