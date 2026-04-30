@@ -1,6 +1,6 @@
 ---
 title: Partial Payment & Payment History
-status: todo
+status: done
 priority: high
 type: feature
 tags: [payment, partial, history, invoice]
