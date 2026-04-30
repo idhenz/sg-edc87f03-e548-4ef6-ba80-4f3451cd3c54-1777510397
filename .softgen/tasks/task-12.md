@@ -14,8 +14,10 @@ Sistem konfirmasi pembayaran untuk invoice keluar. Admin/pelanggan bisa upload b
 
 ## Checklist
 - [x] Buat schema SQL untuk tabel `banks` dan `payment_confirmations`
-- [ ] Buat API `/api/banks` untuk CRUD data bank
-- [ ] Buat halaman Bank Management di `/banks/index.tsx`
+- [x] Buat API `/api/banks` untuk CRUD data bank
+- [x] Buat halaman Bank Management di `/banks/index.tsx`
+- [ ] User membuat tabel `banks` di MySQL database
+- [ ] Buat tabel `payment_confirmations` di database
 - [ ] Buat API `/api/payments/confirm` untuk upload bukti + konfirmasi
 - [ ] Buat API `/api/payments/verify` untuk admin verifikasi pembayaran
 - [ ] Update halaman Invoice Keluar dengan tombol "Konfirmasi Pembayaran"
