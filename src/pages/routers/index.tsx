@@ -47,17 +47,41 @@ export default function RoutersPage() {
     fetchRouters()
   }, [])
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token')
+    console.log('[DEBUG] Token from localStorage:', token ? 'EXISTS' : 'NULL')
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  }
+
   const fetchRouters = async () => {
     try {
-      const res = await fetch('/api/routers')
+      console.log('[DEBUG] Fetching routers...')
+      const res = await fetch('/api/routers', {
+        headers: getAuthHeaders()
+      })
+      console.log('[DEBUG] Fetch routers response status:', res.status)
+      
       if (res.ok) {
         const data = await res.json()
+        console.log('[DEBUG] Routers data:', data)
         setRouters(data)
+      } else {
+        const errorData = await res.json()
+        console.error('[DEBUG] Fetch routers error:', errorData)
+        toast({
+          title: 'Error',
+          description: errorData.message || 'Gagal memuat data router',
+          variant: 'destructive'
+        })
       }
     } catch (error) {
+      console.error('[DEBUG] Fetch routers exception:', error)
       toast({
         title: 'Error',
-        description: 'Gagal memuat data router',
+        description: 'Terjadi kesalahan saat memuat data',
         variant: 'destructive'
       })
     } finally {
@@ -101,19 +125,25 @@ export default function RoutersPage() {
     }
 
     setTesting(true)
+    const testData = {
+      ip_address: formData.ip_address,
+      api_port: formData.api_port,
+      username: formData.username,
+      password: formData.password
+    }
+    
+    console.log('[DEBUG] Test connection data:', testData)
+    
     try {
       const res = await fetch('/api/routers/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ip_address: formData.ip_address,
-          api_port: formData.api_port,
-          username: formData.username,
-          password: formData.password
-        })
+        headers: getAuthHeaders(),
+        body: JSON.stringify(testData)
       })
 
+      console.log('[DEBUG] Test connection response status:', res.status)
       const data = await res.json()
+      console.log('[DEBUG] Test connection response data:', data)
 
       if (res.ok && data.success) {
         toast({
@@ -128,6 +158,7 @@ export default function RoutersPage() {
         })
       }
     } catch (error) {
+      console.error('[DEBUG] Test connection exception:', error)
       toast({
         title: 'Error',
         description: 'Terjadi kesalahan saat testing koneksi',
@@ -142,35 +173,37 @@ export default function RoutersPage() {
     e.preventDefault()
     setSubmitting(true)
 
-    try {
-      const url = '/api/routers'
-      const method = selectedRouter ? 'PUT' : 'POST'
-      const payload = selectedRouter 
-        ? { ...formData, id: selectedRouter.id }
-        : formData
+    const submitData = selectedRouter ? { id: selectedRouter.id, ...formData } : formData
+    console.log('[DEBUG] Submit router data:', { ...submitData, password: '***' })
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+    try {
+      const res = await fetch('/api/routers', {
+        method: selectedRouter ? 'PUT' : 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(submitData)
       })
+
+      console.log('[DEBUG] Submit router response status:', res.status)
+      const data = await res.json()
+      console.log('[DEBUG] Submit router response data:', data)
 
       if (res.ok) {
         toast({
           title: 'Berhasil',
-          description: selectedRouter ? 'Router berhasil diperbarui' : 'Router berhasil ditambahkan'
+          description: data.message
         })
         setDialogOpen(false)
+        resetForm()
         fetchRouters()
       } else {
-        const error = await res.json()
         toast({
           title: 'Error',
-          description: error.message || 'Gagal menyimpan data router',
+          description: data.message || 'Gagal menyimpan router',
           variant: 'destructive'
         })
       }
     } catch (error) {
+      console.error('[DEBUG] Submit router exception:', error)
       toast({
         title: 'Error',
         description: 'Terjadi kesalahan saat menyimpan data',
@@ -183,51 +216,63 @@ export default function RoutersPage() {
 
   const handleDelete = async () => {
     if (!selectedRouter) return
-    setSubmitting(true)
+
+    console.log('[DEBUG] Delete router ID:', selectedRouter.id)
 
     try {
       const res = await fetch(`/api/routers?id=${selectedRouter.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
+
+      console.log('[DEBUG] Delete router response status:', res.status)
+      const data = await res.json()
+      console.log('[DEBUG] Delete router response data:', data)
 
       if (res.ok) {
         toast({
           title: 'Berhasil',
-          description: 'Router berhasil dihapus'
+          description: data.message
         })
         setDeleteDialogOpen(false)
+        setSelectedRouter(null)
         fetchRouters()
       } else {
         toast({
           title: 'Error',
-          description: 'Gagal menghapus router',
+          description: data.message || 'Gagal menghapus router',
           variant: 'destructive'
         })
       }
     } catch (error) {
+      console.error('[DEBUG] Delete router exception:', error)
       toast({
         title: 'Error',
         description: 'Terjadi kesalahan saat menghapus data',
         variant: 'destructive'
       })
-    } finally {
-      setSubmitting(false)
     }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      ip_address: '',
+      api_port: 8728,
+      username: '',
+      password: '',
+      is_active: true
+    })
+    setSelectedRouter(null)
   }
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
-    return new Date(dateString).toLocaleString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    return new Date(dateString).toLocaleString('id-ID')
   }
 
   return (
-    <ProtectedRoute allowedRoles={['admin']}>
+    <ProtectedRoute adminOnly>
       <AppLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
