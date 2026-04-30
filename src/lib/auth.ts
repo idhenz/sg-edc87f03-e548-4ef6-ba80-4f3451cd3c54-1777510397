@@ -1,5 +1,54 @@
 // Auth utility untuk protected API routes
 import { NextApiRequest } from 'next'
+import jwt from 'jsonwebtoken'
+import type { NextApiResponse } from 'next'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here'
+
+interface JWTPayload {
+  id: number
+  username: string
+  email: string
+  role: string
+}
+
+export function generateToken(payload: JWTPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+}
+
+export function verifyTokenString(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch (error) {
+    return null
+  }
+}
+
+export function getUserFromToken(req: NextApiRequest): JWTPayload | null {
+  try {
+    const authHeader = req.headers.authorization
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null
+    }
+
+    const token = authHeader.substring(7)
+    return verifyTokenString(token)
+  } catch (error) {
+    return null
+  }
+}
+
+export function verifyToken(req: NextApiRequest, res: NextApiResponse): JWTPayload | null {
+  const user = getUserFromToken(req)
+  
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' })
+    return null
+  }
+  
+  return user
+}
 
 export interface AuthUser {
   id: number
