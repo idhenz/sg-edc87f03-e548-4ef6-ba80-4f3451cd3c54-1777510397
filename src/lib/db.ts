@@ -26,4 +26,20 @@ export async function query<T = any>(sql: string, values?: any[]): Promise<T[]> 
   }
 }
 
+export async function getConnection() {
+  try {
+    const connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      port: parseInt(process.env.DB_PORT || '3306'),
+    })
+    return connection
+  } catch (error: any) {
+    console.error('Database connection error:', error.message)
+    throw new Error(`Database connection error: ${error.message}`)
+  }
+}
+
 export default pool
