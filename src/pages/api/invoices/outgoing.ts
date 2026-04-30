@@ -12,19 +12,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const { month, year, id } = req.query
       
+      // Fetch single invoice by ID with full details
       if (id) {
-        const invoices = await query('SELECT * FROM invoices_outgoing WHERE id = ?', [id])
+        const invoices = await query(
+          `SELECT io.* 
+           FROM invoices_outgoing io
+           WHERE io.id = ?`,
+          [id]
+        )
+        
+        if (!invoices || invoices.length === 0) {
+          return res.status(404).json({ message: 'Invoice tidak ditemukan' })
+        }
+        
         return res.status(200).json({ invoice: invoices[0] })
       }
       
-      let queryStr = 'SELECT * FROM invoices_outgoing'
+      // Fetch all invoices with optional filters
+      let queryStr = 'SELECT * FROM invoices_outgoing WHERE 1=1'
       const params: any[] = []
       
       if (month && year) {
-        queryStr += ' WHERE MONTH(due_date) = ? AND YEAR(due_date) = ?'
+        queryStr += ' AND MONTH(due_date) = ? AND YEAR(due_date) = ?'
         params.push(parseInt(month as string), parseInt(year as string))
       } else if (year) {
-        queryStr += ' WHERE YEAR(due_date) = ?'
+        queryStr += ' AND YEAR(due_date) = ?'
         params.push(parseInt(year as string))
       }
       
