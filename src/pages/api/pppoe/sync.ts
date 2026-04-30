@@ -40,12 +40,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     try {
+      console.log('[SYNC] Connecting to router:', router.name);
       await conn.connect();
 
       const secrets = await conn.write('/ppp/secret/print');
       const activeConnections = await conn.write('/ppp/active/print');
 
       await conn.close();
+      console.log('[SYNC] Found', secrets.length, 'secrets and', activeConnections.length, 'active connections');
 
       const activeUsernames = new Set(
         activeConnections.map((conn: any) => conn.name)
@@ -57,10 +59,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (const secret of secrets) {
         const isActive = activeUsernames.has(secret.name);
         const activeConn = activeConnections.find((ac: any) => ac.name === secret.name);
+        
+        const pppoeId = secret['.id'] || `*${Math.random().toString(36).substr(2, 9)}`;
+        const username = secret.name;
+        const service = secret.service || 'pppoe';
+        const profile = secret.profile || null;
+        const localAddress = secret['local-address'] || null;
+        const remoteAddress = secret['remote-address'] || null;
+        const lastLogin = isActive && activeConn ? new Date() : null;
+        const uptime = activeConn?.uptime || null;
+        const callerId = activeConn?.['caller-id'] || null;
+
+        console.log('[SYNC] Processing username:', username, 'pppoe_id:', pppoeId);
 
         const existingRecord = await query(
           'SELECT id FROM pppoe_secrets WHERE router_id = ? AND username = ?',
-          [router_id, secret.name]
+          [router_id, username]
         );
 
         if (existingRecord && existingRecord.length > 0) {
@@ -78,19 +92,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ?`,
             [
-              secret['.id'] || secret.name,
-              secret.service || 'pppoe',
-              secret.profile || null,
-              secret['local-address'] || null,
-              secret['remote-address'] || null,
+              pppoeId,
+              service,
+              profile,
+              localAddress,
+              remoteAddress,
               isActive,
-              isActive && activeConn ? new Date() : null,
-              activeConn?.uptime || null,
-              activeConn?.['caller-id'] || null,
+              lastLogin,
+              uptime,
+              callerId,
               existingRecord[0].id
             ]
           );
           updatedCount++;
+          console.log('[SYNC] Updated existing record for:', username);
         } else {
           await query(
             `INSERT INTO pppoe_secrets 
@@ -98,19 +113,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               router_id,
-              secret['.id'] || secret.name,
-              secret.name,
-              secret.service || 'pppoe',
-              secret.profile || null,
-              secret['local-address'] || null,
-              secret['remote-address'] || null,
+              pppoeId,
+              username,
+              service,
+              profile,
+              localAddress,
+              remoteAddress,
               isActive,
-              isActive && activeConn ? new Date() : null,
-              activeConn?.uptime || null,
-              activeConn?.['caller-id'] || null
+              lastLogin,
+              uptime,
+              callerId
             ]
           );
           syncedCount++;
+          console.log('[SYNC] Inserted new record for:', username);
         }
       }
 
@@ -118,6 +134,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         'UPDATE routers SET last_sync = CURRENT_TIMESTAMP WHERE id = ?',
         [router_id]
       );
+
+      console.log('[SYNC] Complete - synced:', syncedCount, 'updated:', updatedCount);
 
       return res.status(200).json({
         success: true,
@@ -127,14 +145,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         total: secrets.length
       });
     } catch (error: any) {
-      console.error('MikroTik connection error:', error);
+      console.error('[SYNC] MikroTik or DB error:', error.message);
       return res.status(400).json({
         success: false,
         message: 'Sinkronisasi gagal: ' + (error.message || 'Tidak dapat terhubung ke router')
       });
     }
-  } catch (error) {
-    console.error('Sync PPPoE error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+  } catch (error: any) {
+    console.error('[SYNC] PPPoE error:', error.message);
+    return res.status(500).json({ message: 'Internal server error: ' + error.message });
   }
 }
