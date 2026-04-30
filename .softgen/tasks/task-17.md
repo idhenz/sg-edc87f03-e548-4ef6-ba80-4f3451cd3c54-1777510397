@@ -17,6 +17,10 @@ Saat ini tabel dan PDF hanya menampilkan "Tanggal Jatuh Tempo" (due_date). User 
 - [x] Tambahkan kolom "Tanggal Invoice" pada header tabel Invoice Keluar
 - [x] Tampilkan `created_at` (format id-ID) pada baris tabel (gunakan fallback '-' jika kosong)
 - [x] Tambahkan baris "Tanggal: [tanggal_invoice]" di template HTML untuk generator PDF (di atas baris Tgl Jatuh Tempo)
+- [x] Update API POST untuk menyimpan `created_at` ke database
+- [x] Update API PUT untuk memperbarui `created_at` di database
+- [x] Update API GET untuk mengambil `created_at` dari database
+- [x] Tambahkan input field "Tanggal Invoice" di form Add/Edit Invoice
 
 ## Acceptance
 - Tanggal invoice muncul di tabel utama Invoice Keluar
