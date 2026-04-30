@@ -148,21 +148,14 @@ export default async function handler(
           ['active', customer_id]
         )
 
-        // 7. Record activation
-        await connection.execute(
-          `INSERT INTO customer_activations 
-           (customer_id, product_id, vendor_id, activation_date, notes) 
-           VALUES (?, ?, ?, ?, ?)`,
-          [customer_id, product_id, vendor_id, activation_date, notes]
-        )
+        console.log('✅ Customer status updated to active')
 
-        console.log('✅ Customer activation recorded successfully')
-
-        return res.status(201).json({
-          message: 'Activation successful',
-          invoices: otc_amount && parseFloat(otc_amount.toString()) > 0 
-            ? [invoiceNumberMRC, invoiceNumberOTC]
-            : [invoiceNumberMRC]
+        return res.status(200).json({
+          message: 'Aktivasi berhasil! Invoice MRC dan OTC telah dibuat.',
+          invoices: {
+            mrc: invoiceNumberMRC,
+            otc: otc_amount ? invoiceNumberOTC : null
+          }
         })
       }
 
