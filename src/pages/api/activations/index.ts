@@ -88,7 +88,6 @@ export default async function handler(
         
         console.log('Creating MRC Invoice:', {
           invoiceNumber: invoiceNumberMRC,
-          customerId: customer_id,
           customerName: customerData.name,
           packageName: `${productData.name} - MRC Bulan Pertama (Prorata)`,
           dueDate: activation_date,
@@ -98,11 +97,10 @@ export default async function handler(
 
         await connection.execute(
           `INSERT INTO invoices_outgoing 
-           (invoice_number, customer_id, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
-           VALUES (?, ?, ?, ?, ?, ?, 'pending', 'MRC', ?)`,
+           (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
+           VALUES (?, ?, ?, ?, ?, 'pending', 'MRC', ?)`,
           [
             invoiceNumberMRC,
-            customer_id,
             customerData.name,
             `${productData.name} - MRC Bulan Pertama (Prorata)`,
             activation_date,
@@ -117,7 +115,6 @@ export default async function handler(
           
           console.log('Creating OTC Invoice:', {
             invoiceNumber: invoiceNumberOTC,
-            customerId: customer_id,
             customerName: customerData.name,
             packageName: `${productData.name} - Biaya Instalasi`,
             dueDate: activation_date,
@@ -127,11 +124,10 @@ export default async function handler(
 
           await connection.execute(
             `INSERT INTO invoices_outgoing 
-             (invoice_number, customer_id, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, 'pending', 'OTC', ?)`,
+             (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
+             VALUES (?, ?, ?, ?, ?, 'pending', 'OTC', ?)`,
             [
               invoiceNumberOTC,
-              customer_id,
               customerData.name,
               `${productData.name} - Biaya Instalasi`,
               activation_date,
