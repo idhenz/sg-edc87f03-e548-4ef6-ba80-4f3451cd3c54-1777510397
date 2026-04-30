@@ -1249,15 +1249,6 @@ export default function CustomersPage() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Catatan</Label>
-                  <Textarea
-                    id="notes"
-                    name="notes"
-                    rows={3}
-                    placeholder="Catatan tambahan (opsional)"
-                  />
-                </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => setActivationDialogOpen(false)}>
                     Batal

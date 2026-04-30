@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import AppLayout from '@/components/AppLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Eye, Edit, Send, Download, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Search, Plus, Pencil, Trash2, FileText } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
 
 interface Invoice {
   id: number
@@ -17,14 +21,13 @@ interface Invoice {
   amount: number
   status: string
   invoice_type?: string
-  notes: string
   created_at: string
 }
 
-// Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('auth_token')
   return {
+    'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
   }
 }
@@ -32,8 +35,11 @@ const getAuthHeaders = () => {
 export default function InvoicesOutgoingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [currentInvoice, setCurrentInvoice] = useState<Partial<Invoice>>({})
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchInvoices()
@@ -42,56 +48,137 @@ export default function InvoicesOutgoingPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      setError(null)
-      console.log('Fetching invoices outgoing...')
-      
       const res = await fetch('/api/invoices/outgoing', {
         headers: getAuthHeaders()
       })
       
-      console.log('Response status:', res.status)
-      
       if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || 'Gagal mengambil data invoice')
+        throw new Error('Gagal mengambil data invoice')
       }
       
       const data = await res.json()
-      console.log('Invoices data:', data)
       setInvoices(data.invoices || [])
     } catch (error: any) {
-      console.error('Failed to fetch invoices:', error)
-      setError(error.message || 'Gagal mengambil data invoice keluar')
+      toast({
+        title: 'Error',
+        description: error.message || 'Gagal mengambil data invoice keluar',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredInvoices = invoices.filter(invoice =>
-    (invoice.invoice_number || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (invoice.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const data = {
+      invoice_number: formData.get('invoice_number'),
+      customer_name: formData.get('customer_name'),
+      package_name: formData.get('package_name'),
+      due_date: formData.get('due_date'),
+      amount: parseInt(formData.get('amount') as string),
+      status: formData.get('status'),
+      invoice_type: formData.get('invoice_type') || 'MRC'
+    }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount)
+    try {
+      const url = editMode ? `/api/invoices/outgoing?id=${currentInvoice.id}` : '/api/invoices/outgoing'
+      const method = editMode ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) throw new Error('Gagal menyimpan data')
+
+      toast({
+        title: 'Berhasil',
+        description: editMode ? 'Invoice berhasil diperbarui' : 'Invoice baru berhasil ditambahkan',
+      })
+
+      setDialogOpen(false)
+      setEditMode(false)
+      setCurrentInvoice({})
+      fetchInvoices()
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menyimpan invoice',
+        variant: 'destructive',
+      })
+    }
   }
 
+  const handleEdit = (invoice: Invoice) => {
+    setCurrentInvoice(invoice)
+    setEditMode(true)
+    setDialogOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus invoice ini?')) return
+
+    try {
+      const res = await fetch(`/api/invoices/outgoing?id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+      if (!res.ok) throw new Error('Gagal menghapus data')
+
+      toast({
+        title: 'Berhasil',
+        description: 'Invoice berhasil dihapus',
+      })
+      fetchInvoices()
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Gagal menghapus invoice',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const filteredInvoices = invoices.filter((inv) =>
+    inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inv.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inv.package_name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
-      paid: 'default',
-      pending: 'secondary',
-      overdue: 'destructive',
+    switch (status) {
+      case 'paid':
+        return 'default'
+      case 'pending':
+        return 'secondary'
+      case 'overdue':
+        return 'destructive'
+      default:
+        return 'outline'
     }
-    const labels: Record<string, string> = {
-      paid: 'Lunas',
-      pending: 'Menunggu',
-      overdue: 'Terlambat',
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'Lunas'
+      case 'pending':
+        return 'Belum Bayar'
+      case 'overdue':
+        return 'Terlambat'
+      default:
+        return status
     }
-    return <Badge variant={variants[status] || 'secondary'}>{labels[status] || status}</Badge>
+  }
+
+  const getInvoiceTypeBadge = (type?: string) => {
+    if (type === 'OTC') {
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Registrasi</Badge>
+    }
+    return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Bulanan</Badge>
   }
 
   return (
@@ -100,48 +187,137 @@ export default function InvoicesOutgoingPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Invoice Keluar (Tagihan)</h1>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open)
+              if (!open) {
+                setEditMode(false)
+                setCurrentInvoice({})
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tambah Invoice
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editMode ? 'Edit Invoice' : 'Tambah Invoice Baru'}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invoice_number">Nomor Invoice</Label>
+                    <Input
+                      id="invoice_number"
+                      name="invoice_number"
+                      defaultValue={currentInvoice.invoice_number}
+                      placeholder="INV-MRC-202604-0001"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="customer_name">Nama Pelanggan</Label>
+                    <Input
+                      id="customer_name"
+                      name="customer_name"
+                      defaultValue={currentInvoice.customer_name}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="package_name">Nama Paket</Label>
+                    <Input
+                      id="package_name"
+                      name="package_name"
+                      defaultValue={currentInvoice.package_name}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="invoice_type">Tipe Invoice</Label>
+                    <Select name="invoice_type" defaultValue={currentInvoice.invoice_type || 'MRC'}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MRC">Bulanan (MRC)</SelectItem>
+                        <SelectItem value="OTC">Registrasi (OTC)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date">Jatuh Tempo</Label>
+                    <Input
+                      id="due_date"
+                      name="due_date"
+                      type="date"
+                      defaultValue={currentInvoice.due_date}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Jumlah Tagihan (Rp)</Label>
+                    <Input
+                      id="amount"
+                      name="amount"
+                      type="number"
+                      defaultValue={currentInvoice.amount}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select name="status" defaultValue={currentInvoice.status || 'pending'}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Belum Bayar</SelectItem>
+                        <SelectItem value="paid">Lunas</SelectItem>
+                        <SelectItem value="overdue">Terlambat</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                      Batal
+                    </Button>
+                    <Button type="submit">
+                      {editMode ? 'Perbarui' : 'Simpan'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Daftar Invoice Keluar
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari invoice atau pelanggan..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="max-w-xs"
-                  />
-                </div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Daftar Invoice Keluar
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-4">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari berdasarkan nomor invoice, pelanggan, atau paket..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-md"
+                />
               </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center py-8 text-muted-foreground">Memuat data...</div>
-              ) : error ? (
-                <div className="text-center py-8">
-                  <p className="text-destructive mb-2">{error}</p>
-                  <button 
-                    onClick={fetchInvoices}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Coba lagi
-                  </button>
-                </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>No. Invoice</TableHead>
+                      <TableHead>Nomor Invoice</TableHead>
+                      <TableHead>Tipe</TableHead>
                       <TableHead>Pelanggan</TableHead>
                       <TableHead>Paket</TableHead>
-                      <TableHead>Tipe</TableHead>
-                      <TableHead>Tanggal</TableHead>
                       <TableHead>Jatuh Tempo</TableHead>
                       <TableHead className="text-right">Jumlah</TableHead>
                       <TableHead>Status</TableHead>
@@ -151,42 +327,47 @@ export default function InvoicesOutgoingPage() {
                   <TableBody>
                     {filteredInvoices.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           Tidak ada data invoice
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredInvoices.map((invoice) => (
                         <TableRow key={invoice.id}>
-                          <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
-                          <TableCell>{invoice.customer_name}</TableCell>
+                          <TableCell className="font-mono text-sm">{invoice.invoice_number}</TableCell>
+                          <TableCell>{getInvoiceTypeBadge(invoice.invoice_type)}</TableCell>
+                          <TableCell className="font-medium">{invoice.customer_name}</TableCell>
                           <TableCell>{invoice.package_name}</TableCell>
                           <TableCell>
-                            {invoice.invoice_type === 'OTC' ? (
-                              <Badge variant="outline">Registrasi (OTC)</Badge>
-                            ) : invoice.invoice_type === 'MRC' ? (
-                              <Badge variant="outline">Bulanan (MRC)</Badge>
-                            ) : (
-                              <Badge variant="outline">{invoice.invoice_type || '-'}</Badge>
-                            )}
+                            {new Date(invoice.due_date).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
                           </TableCell>
-                          <TableCell className="text-sm">{new Date(invoice.created_at).toLocaleDateString('id-ID')}</TableCell>
-                          <TableCell className="text-sm">{new Date(invoice.due_date).toLocaleDateString('id-ID')}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(invoice.amount)}</TableCell>
-                          <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            Rp {invoice.amount.toLocaleString('id-ID')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusBadge(invoice.status) as any}>
+                              {getStatusLabel(invoice.status)}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" title="Lihat Detail">
-                                <Eye className="w-4 h-4" />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(invoice)}
+                              >
+                                <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" title="Edit">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" title="Kirim">
-                                <Send className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" title="Unduh PDF">
-                                <Download className="w-4 h-4" />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(invoice.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
                           </TableCell>
