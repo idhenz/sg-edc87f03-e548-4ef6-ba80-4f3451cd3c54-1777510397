@@ -44,6 +44,7 @@ interface Customer {
   pppoe_ip?: string
   pppoe_uptime?: string
   pppoe_last_login?: string
+  pppoe_secret_id?: number
 }
 
 interface PPPoESecret {
@@ -117,6 +118,7 @@ export default function CustomersPage() {
   const [selectedDistrict, setSelectedDistrict] = useState('')
   const [selectedVillage, setSelectedVillage] = useState('')
   const [selectedCustomerType, setSelectedCustomerType] = useState('personal')
+  const [selectedPppoeSecret, setSelectedPppoeSecret] = useState<string>('')
 
   const [uploadingFile, setUploadingFile] = useState('')
   const [ktpFile, setKtpFile] = useState<string | null>(null)
@@ -458,6 +460,7 @@ export default function CustomersPage() {
       delete_npwp: deleteFlags.npwp,
       delete_nib: deleteFlags.nib,
       delete_sertifikat: deleteFlags.sertifikat,
+      pppoe_secret_id: selectedPppoeSecret ? parseInt(selectedPppoeSecret) : null,
     }
 
     try {
@@ -558,6 +561,7 @@ export default function CustomersPage() {
     setSelectedDistrict('')
     setSelectedVillage('')
     setSelectedCustomerType('personal')
+    setSelectedPppoeSecret('')
     setRegencies([])
     setDistricts([])
     setVillages([])
@@ -572,6 +576,7 @@ export default function CustomersPage() {
     setCurrentCustomer(customer)
     setEditMode(true)
     setSelectedCustomerType(customer.customer_type || 'personal')
+    setSelectedPppoeSecret(customer.pppoe_secret_id?.toString() || '')
     
     if (customer.province_id) {
       setSelectedProvince(customer.province_id)
@@ -954,10 +959,8 @@ export default function CustomersPage() {
                     <div className="space-y-2">
                       <Label htmlFor="pppoe_secret_id">Akun PPPoE (Opsional)</Label>
                       <Select
-                        value={(formData as any).pppoe_secret_id?.toString() || ''}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, pppoe_secret_id: value ? parseInt(value) : null })
-                        }
+                        value={selectedPppoeSecret}
+                        onValueChange={(value) => setSelectedPppoeSecret(value === '0' ? '' : value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih akun PPPoE" />
