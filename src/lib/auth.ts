@@ -1,33 +1,32 @@
-// Simple auth utility - no JWT, just session check
 import type { NextApiRequest } from 'next'
 
 export interface UserSession {
   id: number
-  username: string
+  name: string
   email: string
   role: string
 }
 
-// Check if request has valid session (from Authorization header or cookie)
 export function getUserFromRequest(req: NextApiRequest): UserSession | null {
   try {
-    // Check Authorization header for session data
-    const authHeader = req.headers.authorization
+    const sessionHeader = req.headers['x-user-session']
     
-    if (authHeader && authHeader.startsWith('Session ')) {
-      const sessionData = authHeader.substring(8)
-      const user = JSON.parse(Buffer.from(sessionData, 'base64').toString('utf-8'))
-      return user as UserSession
+    if (!sessionHeader || typeof sessionHeader !== 'string') {
+      console.log('[AUTH] No session header found')
+      return null
     }
+
+    const user = JSON.parse(sessionHeader)
     
-    return null
+    if (!user.id || !user.email) {
+      console.log('[AUTH] Invalid session data')
+      return null
+    }
+
+    console.log('[AUTH] User authenticated:', user.email, 'role:', user.role)
+    return user
   } catch (error) {
     console.error('[AUTH] Error parsing session:', error)
     return null
   }
-}
-
-// Alias for backward compatibility
-export function getUserFromToken(req: NextApiRequest): UserSession | null {
-  return getUserFromRequest(req)
 }

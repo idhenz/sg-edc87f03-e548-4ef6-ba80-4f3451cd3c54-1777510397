@@ -25,26 +25,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const userData = JSON.parse(savedUser)
+        console.log('[AUTH] Loaded user from localStorage:', userData.email)
+        setUser(userData)
       } catch (e) {
+        console.error('[AUTH] Failed to parse saved user')
         localStorage.removeItem('user')
       }
     }
   }, [])
 
   const login = (userData: User) => {
+    console.log('[AUTH] Login user:', userData.email)
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
   }
 
   const logout = () => {
+    console.log('[AUTH] Logout user')
     setUser(null)
     localStorage.removeItem('user')
     router.push('/login')
   }
 
   const getAuthHeader = () => {
-    if (!user) return {}
+    if (!user) {
+      console.log('[AUTH] No user session for headers')
+      return {}
+    }
+    console.log('[AUTH] Sending session header for:', user.email)
     return { 'X-User-Session': JSON.stringify(user) }
   }
 
