@@ -52,12 +52,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       proofUrl = uploadResult.url
     }
 
-    // Insert payment confirmation
+    // Insert payment confirmation - use null for optional fields
     await query(
       `INSERT INTO payment_confirmations 
        (invoice_id, bank_id, amount, payment_date, transfer_from, proof_url, notes, confirmed_by, status) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [invoice_id, bank_id, amount, payment_date, transfer_from || null, proofUrl, notes || null, user.id, 'verified']
+      [
+        invoice_id, 
+        bank_id, 
+        amount, 
+        payment_date, 
+        transfer_from || null,  // Convert empty string or undefined to null
+        proofUrl, 
+        notes || null,          // Convert empty string or undefined to null
+        user.id, 
+        'verified'
+      ]
     )
 
     // Update invoice status to paid
