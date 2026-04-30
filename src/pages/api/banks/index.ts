@@ -15,7 +15,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      requireAdmin(req)
       const { bank_name, account_number, account_holder, branch, is_active } = req.body
 
       if (!bank_name || !account_number || !account_holder) {
@@ -31,7 +30,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'PUT') {
-      requireAdmin(req)
       const { id } = req.query
       const { bank_name, account_number, account_holder, branch, is_active } = req.body
 
@@ -48,7 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'DELETE') {
-      requireAdmin(req)
       const { id } = req.query
 
       if (!id) {
@@ -63,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error('Banks API Error:', error.message)
     return res.status(500).json({ 
-      message: error.message === 'Forbidden - Admin only' ? 'Akses ditolak - Admin only' : 'Terjadi kesalahan pada server', 
+      message: 'Terjadi kesalahan pada server', 
       error: error.message 
     })
   }
