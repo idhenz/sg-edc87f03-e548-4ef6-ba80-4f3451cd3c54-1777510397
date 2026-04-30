@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import html2pdf from 'html2pdf.js'
 
 interface Invoice {
   id: number
@@ -309,6 +308,9 @@ export default function InvoicesOutgoingPage() {
     setSelectedPdfInvoice(invoice)
     
     try {
+      // Dynamic import to avoid SSR issues
+      const html2pdf = (await import('html2pdf.js')).default
+      
       const htmlContent = `
         <!DOCTYPE html>
         <html>
