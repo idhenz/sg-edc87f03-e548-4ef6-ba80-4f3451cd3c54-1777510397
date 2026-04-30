@@ -341,6 +341,15 @@ export default function InvoicesOutgoingPage() {
       console.log('Settings loaded for PDF:', currentSettings)
       console.log('Banks loaded for PDF:', currentBanks)
 
+      // Extract settings data - handle nested structure
+      const settingsData = currentSettings?.settings || currentSettings
+      const companyName = settingsData?.isp_name || 'PT. Internet Service Provider'
+      const companyAddress = settingsData?.isp_address || 'Alamat Perusahaan'
+      const companyPhone = settingsData?.isp_phone || '-'
+      const companyEmail = settingsData?.isp_email || '-'
+      const logoUrl = settingsData?.logo_url || ''
+      const whatsappContact = settingsData?.invoice_whatsapp || '-'
+
       // Create temporary container for PDF content
       const tempDiv = document.createElement('div')
       tempDiv.style.position = 'absolute'
@@ -359,12 +368,12 @@ export default function InvoicesOutgoingPage() {
           <!-- Header -->
           <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px;">
             <div style="flex: 1;">
-              ${currentSettings?.logo_url ? `<img src="${currentSettings.logo_url}" style="max-width: 180px; max-height: 70px; margin-bottom: 10px;" />` : ''}
-              <div style="font-size: 20px; font-weight: 600; color: #1e40af; margin-bottom: 8px;">${currentSettings?.company_name || 'PT. Internet Service Provider'}</div>
+              ${logoUrl ? `<img src="${logoUrl}" style="max-width: 180px; max-height: 70px; margin-bottom: 10px;" />` : ''}
+              <div style="font-size: 20px; font-weight: 600; color: #1e40af; margin-bottom: 8px;">${companyName}</div>
               <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
-                ${currentSettings?.company_address || 'Alamat Perusahaan'}<br/>
-                Telp: ${currentSettings?.company_phone || '-'}<br/>
-                Email: ${currentSettings?.company_email || '-'}
+                ${companyAddress}<br/>
+                Telp: ${companyPhone}<br/>
+                Email: ${companyEmail}
               </div>
             </div>
             <div style="text-align: right;">
@@ -439,8 +448,8 @@ export default function InvoicesOutgoingPage() {
             <div style="border-top: 1px solid rgba(255,255,255,0.25); margin-top: 15px; padding-top: 15px; font-size: 12px; line-height: 1.7;">
               <span style="font-weight: 600;">📱 Konfirmasi Pembayaran:</span><br/>
               Silakan konfirmasi pembayaran Anda melalui:<br/>
-              <span style="font-weight: 600;">WhatsApp:</span> ${currentSettings?.confirmation_contact || '-'}<br/>
-              <span style="font-weight: 600;">Email:</span> ${currentSettings?.confirmation_email || currentSettings?.company_email || '-'}<br/>
+              <span style="font-weight: 600;">WhatsApp:</span> ${whatsappContact}<br/>
+              <span style="font-weight: 600;">Email:</span> ${companyEmail}<br/>
               <em style="font-size: 11px; opacity: 0.9;">Sertakan bukti transfer dan nomor invoice</em>
             </div>
           </div>
