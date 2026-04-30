@@ -4,7 +4,9 @@ import AppLayout from '@/components/AppLayout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { FileText } from 'lucide-react'
+import { FileText, Eye, Edit, Send, Download, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface Invoice {
   id: number
@@ -31,6 +33,7 @@ export default function InvoicesOutgoingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchInvoices()
@@ -65,8 +68,8 @@ export default function InvoicesOutgoingPage() {
   }
 
   const filteredInvoices = invoices.filter(invoice =>
-    invoice.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    invoice.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (invoice.invoice_number || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (invoice.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const formatCurrency = (amount: number) => {
@@ -101,10 +104,21 @@ export default function InvoicesOutgoingPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Daftar Invoice Keluar
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Daftar Invoice Keluar
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari invoice atau pelanggan..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="max-w-xs"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -126,6 +140,7 @@ export default function InvoicesOutgoingPage() {
                       <TableHead>No. Invoice</TableHead>
                       <TableHead>Pelanggan</TableHead>
                       <TableHead>Paket</TableHead>
+                      <TableHead>Tipe</TableHead>
                       <TableHead>Tanggal</TableHead>
                       <TableHead>Jatuh Tempo</TableHead>
                       <TableHead className="text-right">Jumlah</TableHead>
@@ -134,33 +149,50 @@ export default function InvoicesOutgoingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((invoice) => (
-                      <TableRow key={invoice.id}>
-                        <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
-                        <TableCell>{invoice.customer_name}</TableCell>
-                        <TableCell>{invoice.package_name}</TableCell>
-                        <TableCell className="text-sm">{new Date(invoice.invoice_date).toLocaleDateString('id-ID')}</TableCell>
-                        <TableCell className="text-sm">{new Date(invoice.due_date).toLocaleDateString('id-ID')}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(invoice.amount)}</TableCell>
-                        <TableCell>{getStatusBadge(invoice.payment_status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" title="Lihat Detail">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" title="Edit">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" title="Kirim">
-                              <Send className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" title="Unduh PDF">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    {filteredInvoices.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          Tidak ada data invoice
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredInvoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                          <TableCell className="font-mono font-medium">{invoice.invoice_number}</TableCell>
+                          <TableCell>{invoice.customer_name}</TableCell>
+                          <TableCell>{invoice.package_name}</TableCell>
+                          <TableCell>
+                            {invoice.invoice_type === 'OTC' ? (
+                              <Badge variant="outline">Registrasi (OTC)</Badge>
+                            ) : invoice.invoice_type === 'MRC' ? (
+                              <Badge variant="outline">Bulanan (MRC)</Badge>
+                            ) : (
+                              <Badge variant="outline">{invoice.invoice_type || '-'}</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{new Date(invoice.created_at).toLocaleDateString('id-ID')}</TableCell>
+                          <TableCell className="text-sm">{new Date(invoice.due_date).toLocaleDateString('id-ID')}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCurrency(invoice.amount)}</TableCell>
+                          <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button variant="ghost" size="icon" title="Lihat Detail">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Edit">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Kirim">
+                                <Send className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title="Unduh PDF">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
