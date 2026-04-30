@@ -1,11 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RouterOSAPI } from 'node-routeros';
 import { query } from '@/lib/db';
-import { getUserFromToken } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const user = getUserFromToken(req);
+    const user = getUserFromRequest(req);
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
