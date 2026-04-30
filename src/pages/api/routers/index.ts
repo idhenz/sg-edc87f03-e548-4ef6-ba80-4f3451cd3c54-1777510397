@@ -78,7 +78,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, user: any) {
   }
 
   let updateQuery = 'UPDATE routers SET name = ?, ip_address = ?, api_port = ?, username = ?, is_active = ?';
-  let params = [name, ip_address, api_port || 8728, username, is_active !== false];
+  const params = [name, ip_address, api_port || 8728, username, is_active !== false];
 
   if (password) {
     updateQuery += ', password = ?';

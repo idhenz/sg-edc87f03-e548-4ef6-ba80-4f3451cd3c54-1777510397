@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Wifi } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const { login, user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
 
   if (user) {
     router.push('/dashboard')
@@ -26,10 +28,50 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
+    console.log('[LOGIN DEBUG] Attempting login with email:', email)
+
     try {
-      await login(email, password)
-    } catch (err: any) {
-      setError(err.message || 'Login gagal. Periksa koneksi database atau kredensial Anda.')
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+
+      console.log('[LOGIN DEBUG] Login response status:', res.status)
+      const data = await res.json()
+      console.log('[LOGIN DEBUG] Login response data:', { ...data, token: data.token ? 'EXISTS' : 'NULL' })
+
+      if (res.ok && data.token) {
+        console.log('[LOGIN DEBUG] Login successful, calling login() from AuthContext')
+        login(data.token, data.user)
+        
+        // Verify token is saved
+        const savedToken = localStorage.getItem('token')
+        console.log('[LOGIN DEBUG] Token saved to localStorage:', savedToken ? 'YES' : 'NO')
+        console.log('[LOGIN DEBUG] Token length:', savedToken?.length || 0)
+        
+        toast({
+          title: 'Login Berhasil',
+          description: `Selamat datang, ${data.user.username}`
+        })
+        
+        console.log('[LOGIN DEBUG] Redirecting to dashboard...')
+        router.push('/dashboard')
+      } else {
+        console.log('[LOGIN DEBUG] Login failed:', data.message)
+        toast({
+          title: 'Login Gagal',
+          description: data.message || 'Username atau password salah',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('[LOGIN DEBUG] Login exception:', error)
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat login',
+        variant: 'destructive'
+      })
     } finally {
       setIsLoading(false)
     }

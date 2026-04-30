@@ -3,92 +3,72 @@ import { useRouter } from 'next/router'
 
 interface User {
   id: number
-  name: string
+  username: string
   email: string
-  role: 'admin' | 'reseller'
+  role: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
+  login: (token: string, user: User) => void
   logout: () => void
-  isLoading: boolean
+  isAuthenticated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    checkAuth()
+    console.log('[AUTH DEBUG] AuthProvider mounted, checking for existing token...')
+    const token = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    
+    console.log('[AUTH DEBUG] Token exists:', token ? 'YES' : 'NO')
+    console.log('[AUTH DEBUG] User exists:', savedUser ? 'YES' : 'NO')
+    
+    if (token && savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser)
+        console.log('[AUTH DEBUG] Restored user from localStorage:', parsedUser)
+        setUser(parsedUser)
+      } catch (error) {
+        console.error('[AUTH DEBUG] Error parsing saved user:', error)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
+    }
   }, [])
 
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('auth_token')
-      
-      if (!token) {
-        setIsLoading(false)
-        return
-      }
-
-      const res = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data.user)
-      } else {
-        // Token invalid or expired
-        localStorage.removeItem('auth_token')
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error)
-      localStorage.removeItem('auth_token')
-    } finally {
-      setIsLoading(false)
-    }
+  const login = (token: string, userData: User) => {
+    console.log('[AUTH DEBUG] login() called with token length:', token.length)
+    console.log('[AUTH DEBUG] login() called with user:', userData)
+    
+    localStorage.setItem('token', token)
+    localStorage.setItem('user', JSON.stringify(userData))
+    
+    // Verify immediately
+    const verifyToken = localStorage.getItem('token')
+    const verifyUser = localStorage.getItem('user')
+    console.log('[AUTH DEBUG] Verification - Token saved:', verifyToken ? 'YES' : 'NO')
+    console.log('[AUTH DEBUG] Verification - User saved:', verifyUser ? 'YES' : 'NO')
+    
+    setUser(userData)
+    console.log('[AUTH DEBUG] User state updated')
   }
 
-  const login = async (email: string, password: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-
-    if (!res.ok) {
-      const error = await res.json()
-      throw new Error(error.message || 'Login gagal')
-    }
-
-    const data = await res.json()
-    
-    // Save token to localStorage
-    localStorage.setItem('auth_token', data.token)
-    
-    setUser(data.user)
-    router.push('/dashboard')
-  }
-
-  const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    
-    // Clear token from localStorage
-    localStorage.removeItem('auth_token')
-    
+  const logout = () => {
+    console.log('[AUTH DEBUG] logout() called')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setUser(null)
     router.push('/login')
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   )

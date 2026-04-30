@@ -1,75 +1,61 @@
-import { NextApiRequest, NextApiResponse } from 'next'
-import { query } from '@/lib/db'
-import crypto from 'crypto'
-
-interface User {
-  id: number
-  name: string
-  email: string
-  password: string
-  role: 'admin' | 'reseller'
-}
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { query } from '@/lib/db';
+import { generateToken } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('[LOGIN API DEBUG] Request method:', req.method);
+  
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' })
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const { username, password } = req.body;
+  console.log('[LOGIN API DEBUG] Login attempt for username:', username);
+
+  if (!username || !password) {
+    console.log('[LOGIN API DEBUG] Missing credentials');
+    return res.status(400).json({ message: 'Username and password are required' });
   }
 
   try {
-    const { email, password } = req.body
+    const users = await query(
+      'SELECT * FROM users WHERE username = ? AND password = ?',
+      [username, password]
+    );
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email dan password wajib diisi' })
-    }
-
-    // Check database connection
-    if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
-      console.error('Missing database configuration')
-      return res.status(500).json({ message: 'Database configuration error. Please check environment variables.' })
-    }
-
-    const users = await query<User>(
-      'SELECT id, name, email, password, role FROM users WHERE email = ?',
-      [email]
-    )
+    console.log('[LOGIN API DEBUG] Query result count:', users.length);
 
     if (users.length === 0) {
-      return res.status(401).json({ message: 'Email atau password salah' })
+      console.log('[LOGIN API DEBUG] Invalid credentials');
+      return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    const user = users[0]
+    const user = users[0];
+    console.log('[LOGIN API DEBUG] User found:', { id: user.id, username: user.username, role: user.role });
 
-    if (user.password !== password) {
-      return res.status(401).json({ message: 'Email atau password salah' })
-    }
-
-    // Generate simple token (base64 encoded user data)
-    const userData = {
+    const token = generateToken({
       id: user.id,
-      name: user.name,
+      username: user.username,
       email: user.email,
-      role: user.role,
-      timestamp: Date.now()
-    }
+      role: user.role
+    });
 
-    const token = Buffer.from(JSON.stringify(userData)).toString('base64')
+    console.log('[LOGIN API DEBUG] Token generated, length:', token.length);
 
-    console.log('Login successful for:', email)
-    
-    return res.status(200).json({ 
+    const responseData = {
+      token,
       user: {
         id: user.id,
-        name: user.name,
+        username: user.username,
         email: user.email,
         role: user.role
-      },
-      token 
-    })
-  } catch (error: any) {
-    console.error('Login error:', error)
-    return res.status(500).json({ 
-      message: 'Terjadi kesalahan pada server',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    })
+      }
+    };
+
+    console.log('[LOGIN API DEBUG] Sending response with token and user data');
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error('[LOGIN API DEBUG] Error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
