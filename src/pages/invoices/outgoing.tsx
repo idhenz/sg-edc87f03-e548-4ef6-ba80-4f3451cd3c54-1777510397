@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import html2pdf from 'html2pdf.js'
 
 interface Invoice {
   id: number
@@ -57,8 +58,8 @@ interface Settings {
 
 export default function InvoicesOutgoingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [banks, setBanks] = useState<Bank[]>([])
+  const [settings, setSettings] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
@@ -67,8 +68,6 @@ export default function InvoicesOutgoingPage() {
   // Payment confirmation states
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [banks, setBanks] = useState<Bank[]>([])
-  const [paymentAmount, setPaymentAmount] = useState('')
   
   // Payment history states
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
@@ -105,7 +104,8 @@ export default function InvoicesOutgoingPage() {
   useEffect(() => {
     fetchInvoices()
     fetchBanks()
-  }, [selectedMonth, selectedYear])
+    fetchSettings()
+  }, [])
 
   useEffect(() => {
     const filtered = invoices.filter(inv =>
@@ -138,9 +138,19 @@ export default function InvoicesOutgoingPage() {
     try {
       const res = await fetch('/api/banks')
       const data = await res.json()
-      setBanks(data.banks || [])
-    } catch {
-      toast({ title: 'Error', description: 'Gagal memuat data bank', variant: 'destructive' })
+      setBanks(data.filter((b: Bank) => b.is_active))
+    } catch (error) {
+      console.error('Error fetching banks:', error)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      setSettings(data)
+    } catch (error) {
+      console.error('Error fetching settings:', error)
     }
   }
 
@@ -297,180 +307,367 @@ export default function InvoicesOutgoingPage() {
   const generatePDF = async (invoice: Invoice) => {
     setIsGeneratingPdf(true)
     setSelectedPdfInvoice(invoice)
-    setShowPdfModal(true)
-
+    
     try {
-      // Fetch additional data
-      const [settingsRes, banksRes, historyRes] = await Promise.all([
-        fetch('/api/settings'),
-        fetch('/api/banks'),
-        fetch(`/api/payments/history?invoice_id=${invoice.id}`)
-      ])
-
-      const settingsData = await settingsRes.json()
-      const banksData = await banksRes.json()
-      const historyData = await historyRes.json()
-
-      const settings: Settings = settingsData.settings || {}
-      const banksList: Bank[] = banksData.banks || []
-      const payments: PaymentHistory[] = historyData.payments || []
-
-      // Create hidden container for PDF generation
-      const container = document.createElement('div')
-      container.style.position = 'absolute'
-      container.style.left = '-9999px'
-      container.style.width = '210mm'
-      container.style.padding = '20mm'
-      container.style.backgroundColor = 'white'
-      container.style.fontFamily = 'Arial, sans-serif'
-      
-      const paidAmount = parseFloat(invoice.paid_amount || '0')
-      const totalAmount = parseFloat(invoice.amount)
-      const remainingAmount = totalAmount - paidAmount
-
-      // Generate invoice HTML
-      container.innerHTML = `
-        <div style="position: relative;">
-          ${invoice.status === 'paid' ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 120px; color: rgba(34, 197, 94, 0.1); font-weight: bold; z-index: 0; pointer-events: none;">LUNAS</div>' : ''}
-          ${invoice.status === 'partial' ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 80px; color: rgba(251, 146, 60, 0.1); font-weight: bold; z-index: 0; pointer-events: none;">LUNAS SEBAGIAN</div>' : ''}
-          ${invoice.status === 'pending' ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 100px; color: rgba(148, 163, 184, 0.1); font-weight: bold; z-index: 0; pointer-events: none;">BELUM BAYAR</div>' : ''}
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Invoice ${invoice.invoice_number}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              padding: 40px; 
+              background: #f8f9fa;
+              position: relative;
+            }
+            .watermark {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-45deg);
+              font-size: 120px;
+              font-weight: bold;
+              opacity: 0.08;
+              color: ${invoice.status === 'paid' ? '#10b981' : '#ef4444'};
+              z-index: 0;
+              white-space: nowrap;
+            }
+            .container { 
+              max-width: 800px; 
+              margin: 0 auto; 
+              background: white; 
+              padding: 50px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+              border-radius: 8px;
+              position: relative;
+              z-index: 1;
+            }
+            .header { 
+              display: flex; 
+              justify-content: space-between; 
+              align-items: flex-start;
+              padding-bottom: 30px;
+              border-bottom: 3px solid #1e40af;
+              margin-bottom: 40px;
+            }
+            .company-info {
+              flex: 1;
+            }
+            .company-logo {
+              max-width: 180px;
+              max-height: 80px;
+              margin-bottom: 15px;
+            }
+            .company-name {
+              font-size: 24px;
+              font-weight: bold;
+              color: #1e40af;
+              margin-bottom: 8px;
+            }
+            .company-details {
+              font-size: 12px;
+              color: #64748b;
+              line-height: 1.6;
+            }
+            .invoice-header {
+              text-align: right;
+            }
+            .invoice-title {
+              font-size: 36px;
+              font-weight: bold;
+              color: #1e40af;
+              margin-bottom: 10px;
+            }
+            .invoice-meta {
+              font-size: 13px;
+              color: #475569;
+              line-height: 1.8;
+            }
+            .invoice-meta strong {
+              color: #1e293b;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 6px 16px;
+              border-radius: 20px;
+              font-size: 11px;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin-top: 8px;
+              background: ${invoice.status === 'paid' ? '#dcfce7' : invoice.status === 'partial' ? '#fef3c7' : '#fee2e2'};
+              color: ${invoice.status === 'paid' ? '#166534' : invoice.status === 'partial' ? '#92400e' : '#991b1b'};
+            }
+            .billing-section {
+              margin: 30px 0;
+              padding: 20px;
+              background: #f8fafc;
+              border-radius: 6px;
+            }
+            .billing-title {
+              font-size: 12px;
+              font-weight: bold;
+              color: #64748b;
+              text-transform: uppercase;
+              margin-bottom: 8px;
+            }
+            .billing-name {
+              font-size: 18px;
+              font-weight: bold;
+              color: #1e293b;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 30px 0;
+            }
+            .items-table thead {
+              background: #1e40af;
+              color: white;
+            }
+            .items-table th {
+              padding: 14px;
+              text-align: left;
+              font-size: 13px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .items-table th:last-child {
+              text-align: right;
+            }
+            .items-table td {
+              padding: 16px 14px;
+              border-bottom: 1px solid #e2e8f0;
+              font-size: 14px;
+              color: #475569;
+            }
+            .items-table td:last-child {
+              text-align: right;
+              font-weight: 600;
+              color: #1e293b;
+            }
+            .items-table tbody tr:last-child td {
+              border-bottom: none;
+            }
+            .totals-section {
+              margin-top: 30px;
+              text-align: right;
+            }
+            .total-row {
+              display: flex;
+              justify-content: flex-end;
+              padding: 12px 0;
+              font-size: 14px;
+            }
+            .total-label {
+              min-width: 150px;
+              color: #64748b;
+              padding-right: 30px;
+            }
+            .total-amount {
+              min-width: 150px;
+              font-weight: 600;
+              color: #1e293b;
+            }
+            .grand-total {
+              border-top: 2px solid #1e40af;
+              padding-top: 16px;
+              margin-top: 8px;
+            }
+            .grand-total .total-label {
+              font-size: 16px;
+              font-weight: bold;
+              color: #1e293b;
+            }
+            .grand-total .total-amount {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e40af;
+            }
+            .payment-info {
+              margin-top: 40px;
+              padding: 25px;
+              background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+              border-radius: 8px;
+              color: white;
+            }
+            .payment-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 16px;
+            }
+            .bank-details {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+              margin-bottom: 20px;
+            }
+            .bank-item {
+              background: rgba(255,255,255,0.15);
+              padding: 12px;
+              border-radius: 6px;
+            }
+            .bank-label {
+              font-size: 11px;
+              opacity: 0.9;
+              margin-bottom: 4px;
+            }
+            .bank-value {
+              font-size: 14px;
+              font-weight: 600;
+            }
+            .confirmation-info {
+              border-top: 1px solid rgba(255,255,255,0.3);
+              padding-top: 20px;
+              margin-top: 20px;
+              font-size: 13px;
+              line-height: 1.6;
+            }
+            .confirmation-info strong {
+              display: block;
+              margin-bottom: 8px;
+              font-size: 14px;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 25px;
+              border-top: 1px solid #e2e8f0;
+              text-align: center;
+              font-size: 11px;
+              color: #94a3b8;
+            }
+            .footer-note {
+              margin-top: 12px;
+              font-style: italic;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="watermark">${invoice.status === 'paid' ? 'LUNAS' : invoice.status === 'partial' ? 'LUNAS SEBAGIAN' : 'BELUM LUNAS'}</div>
           
-          <div style="position: relative; z-index: 1;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 3px solid #1e40af; padding-bottom: 20px;">
-              <div>
-                ${settings.logo_url ? `<img src="${settings.logo_url}" alt="Logo" style="height: 60px; margin-bottom: 10px;" />` : ''}
-                <h1 style="margin: 0; font-size: 24px; color: #1e40af;">${settings.company_name || 'ISP Company'}</h1>
-                <p style="margin: 5px 0; font-size: 12px; color: #64748b;">${settings.company_address || ''}</p>
-                <p style="margin: 5px 0; font-size: 12px; color: #64748b;">Telp: ${settings.company_phone || ''} | Email: ${settings.company_email || ''}</p>
+          <div class="container">
+            <!-- Header -->
+            <div class="header">
+              <div class="company-info">
+                ${settings?.logo_url ? `<img src="${settings.logo_url}" alt="Company Logo" class="company-logo">` : ''}
+                <div class="company-name">${settings?.company_name || 'PT. Internet Service Provider'}</div>
+                <div class="company-details">
+                  ${settings?.company_address || 'Alamat Perusahaan'}<br>
+                  Telp: ${settings?.company_phone || '-'}<br>
+                  Email: ${settings?.company_email || '-'}
+                </div>
               </div>
-              <div style="text-align: right;">
-                <h2 style="margin: 0; font-size: 32px; color: #1e40af; font-weight: bold;">INVOICE</h2>
-                <p style="margin: 5px 0; font-size: 14px;"><strong>No:</strong> ${invoice.invoice_number}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><strong>Tanggal:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID') : '-'}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><strong>Tgl Jatuh Tempo:</strong> ${new Date(invoice.due_date).toLocaleDateString('id-ID')}</p>
-              </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-              <div style="flex: 1;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase;">Tagihan Kepada:</h3>
-                <p style="margin: 5px 0; font-size: 16px; font-weight: bold; color: #1e293b;">${invoice.customer_name}</p>
-                <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Paket: ${invoice.package_name}</p>
-              </div>
-              <div style="flex: 1; text-align: right;">
-                <p style="margin: 5px 0; font-size: 14px;"><strong>Jenis:</strong> ${invoice.invoice_type}</p>
-                <p style="margin: 5px 0; font-size: 14px;"><strong>Status:</strong> <span style="color: ${invoice.status === 'paid' ? '#22c55e' : invoice.status === 'partial' ? '#fb923c' : '#94a3b8'}; font-weight: bold;">${invoice.status === 'paid' ? 'LUNAS' : invoice.status === 'partial' ? 'LUNAS SEBAGIAN' : 'BELUM BAYAR'}</span></p>
+              <div class="invoice-header">
+                <div class="invoice-title">INVOICE</div>
+                <div class="invoice-meta">
+                  <strong>No. Invoice:</strong> ${invoice.invoice_number}<br>
+                  <strong>Tanggal:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'}<br>
+                  <strong>Jatuh Tempo:</strong> ${new Date(invoice.due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}<br>
+                  <strong>Jenis:</strong> ${invoice.invoice_type}
+                </div>
+                <div class="status-badge">${invoice.status === 'paid' ? 'Lunas' : invoice.status === 'partial' ? 'Lunas Sebagian' : 'Belum Lunas'}</div>
               </div>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <!-- Bill To -->
+            <div class="billing-section">
+              <div class="billing-title">Tagihan Kepada</div>
+              <div class="billing-name">${invoice.customer_name}</div>
+            </div>
+
+            <!-- Items Table -->
+            <table class="items-table">
               <thead>
-                <tr style="background-color: #1e40af; color: white;">
-                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Deskripsi</th>
-                  <th style="padding: 12px; text-align: right; border: 1px solid #ddd; width: 150px;">Jumlah</th>
+                <tr>
+                  <th>Deskripsi Layanan</th>
+                  <th>Periode</th>
+                  <th>Jumlah</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style="padding: 12px; border: 1px solid #ddd;">${invoice.package_name} - ${invoice.invoice_type}</td>
-                  <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">Rp ${parseFloat(invoice.amount).toLocaleString('id-ID')}</td>
-                </tr>
-                ${invoice.status !== 'pending' ? `
-                <tr style="background-color: #f1f5f9;">
-                  <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Sudah Dibayar</td>
-                  <td style="padding: 12px; text-align: right; border: 1px solid #ddd; color: #22c55e; font-weight: bold;">Rp ${paidAmount.toLocaleString('id-ID')}</td>
-                </tr>
-                ` : ''}
-                ${invoice.status === 'partial' ? `
-                <tr style="background-color: #fef3c7;">
-                  <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">Sisa Tagihan</td>
-                  <td style="padding: 12px; text-align: right; border: 1px solid #ddd; color: #fb923c; font-weight: bold;">Rp ${remainingAmount.toLocaleString('id-ID')}</td>
-                </tr>
-                ` : ''}
-                <tr style="background-color: #1e293b; color: white;">
-                  <td style="padding: 15px; border: 1px solid #ddd; font-weight: bold; font-size: 16px;">TOTAL TAGIHAN</td>
-                  <td style="padding: 15px; text-align: right; border: 1px solid #ddd; font-weight: bold; font-size: 18px;">Rp ${parseFloat(invoice.amount).toLocaleString('id-ID')}</td>
+                  <td>${invoice.package_name}</td>
+                  <td>${invoice.invoice_type}</td>
+                  <td>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</td>
                 </tr>
               </tbody>
             </table>
 
-            ${payments.length > 0 ? `
-            <div style="margin-bottom: 30px;">
-              <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #64748b; text-transform: uppercase;">Riwayat Pembayaran:</h3>
-              <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                <thead>
-                  <tr style="background-color: #f1f5f9;">
-                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Tanggal</th>
-                    <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Bank</th>
-                    <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">Nominal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${payments.map(p => `
-                  <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${new Date(p.payment_date).toLocaleDateString('id-ID')}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${p.bank_name}</td>
-                    <td style="padding: 8px; text-align: right; border: 1px solid #ddd;">Rp ${parseFloat(p.amount).toLocaleString('id-ID')}</td>
-                  </tr>
-                  `).join('')}
-                </tbody>
-              </table>
+            <!-- Totals -->
+            <div class="totals-section">
+              <div class="total-row">
+                <div class="total-label">Subtotal</div>
+                <div class="total-amount">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.amount))}</div>
+              </div>
+              ${invoice.paid_amount && Number(invoice.paid_amount) > 0 ? `
+              <div class="total-row">
+                <div class="total-label">Terbayar</div>
+                <div class="total-amount" style="color: #10b981;">-${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(invoice.paid_amount))}</div>
+              </div>
+              ` : ''}
+              <div class="total-row grand-total">
+                <div class="total-label">${invoice.status === 'paid' ? 'Total Terbayar' : 'Total Tagihan'}</div>
+                <div class="total-amount">${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(invoice.status === 'paid' ? Number(invoice.amount) : Number(invoice.amount) - Number(invoice.paid_amount || 0))}</div>
+              </div>
+            </div>
+
+            ${invoice.status !== 'paid' ? `
+            <!-- Payment Info -->
+            <div class="payment-info">
+              <div class="payment-title">🏦 Informasi Pembayaran</div>
+              <div class="bank-details">
+                ${banks.slice(0, 4).map(bank => `
+                  <div class="bank-item">
+                    <div class="bank-label">${bank.bank_name}</div>
+                    <div class="bank-value">${bank.account_number}</div>
+                    <div class="bank-label" style="margin-top: 4px;">a/n ${bank.account_holder}</div>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="confirmation-info">
+                <strong>📱 Konfirmasi Pembayaran:</strong>
+                Silakan konfirmasi pembayaran melalui:<br>
+                <strong>WhatsApp:</strong> ${settings?.confirmation_contact || '-'}<br>
+                <strong>Email:</strong> ${settings?.confirmation_email || settings?.company_email || '-'}<br>
+                <em>Sertakan bukti transfer dan nomor invoice</em>
+              </div>
             </div>
             ` : ''}
 
-            <div style="margin-bottom: 30px; padding: 15px; background-color: #f8fafc; border-left: 4px solid #1e40af;">
-              <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #1e40af; text-transform: uppercase;">Pembayaran Transfer ke:</h3>
-              ${banksList.map(bank => `
-                <p style="margin: 5px 0; font-size: 13px;"><strong>${bank.bank_name}</strong> - ${bank.account_number} a.n. ${bank.account_holder}</p>
-              `).join('')}
-            </div>
-
-            <div style="margin-top: 60px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-              <p style="margin: 5px 0;">Dokumen ini dibuat secara otomatis oleh sistem.</p>
-              <p style="margin: 5px 0;">Untuk informasi lebih lanjut, hubungi ${settings.company_phone || ''} atau ${settings.company_email || ''}</p>
+            <!-- Footer -->
+            <div class="footer">
+              Invoice ini dibuat secara otomatis oleh sistem.<br>
+              Terima kasih atas kepercayaan Anda menggunakan layanan kami.
+              <div class="footer-note">
+                Dokumen ini sah dan diproses oleh komputer tanpa memerlukan tanda tangan basah.
+              </div>
             </div>
           </div>
-        </div>
+        </body>
+        </html>
       `
 
-      document.body.appendChild(container)
+      const opt = {
+        margin: 0,
+        filename: `Invoice-${invoice.invoice_number}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }
 
-      // Generate PDF using html2canvas and jsPDF
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      })
-
-      document.body.removeChild(container)
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-
-      const imgWidth = 210
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+      const pdfBlob = await html2pdf().set(opt).from(htmlContent).output('blob')
+      const blobUrl = URL.createObjectURL(pdfBlob)
       
-      const pdfBlob = pdf.output('blob')
-      const pdfUrl = URL.createObjectURL(pdfBlob)
-      
-      setPdfBlob(pdfUrl)
-      setIsGeneratingPdf(false)
+      setPdfBlob(blobUrl)
+      setShowPdfModal(true)
     } catch (error) {
       console.error('Error generating PDF:', error)
-      toast({ 
-        title: 'Error', 
-        description: 'Gagal membuat PDF. Silakan coba lagi.', 
-        variant: 'destructive' 
-      })
+      toast({ title: 'Error', description: 'Gagal generate PDF', variant: 'destructive' })
+    } finally {
       setIsGeneratingPdf(false)
-      setShowPdfModal(false)
     }
   }
 
