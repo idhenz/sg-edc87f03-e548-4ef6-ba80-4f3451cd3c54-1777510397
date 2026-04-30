@@ -50,7 +50,7 @@ export default function InvoicesOutgoingPage() {
   const [editMode, setEditMode] = useState(false)
   const [currentInvoice, setCurrentInvoice] = useState<Partial<Invoice>>({})
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [proofFile, setProofFile] = useState<File | null>(null)
   const { toast } = useToast()
@@ -65,7 +65,7 @@ export default function InvoicesOutgoingPage() {
       setLoading(true)
       let url = '/api/invoices/outgoing'
       const params = new URLSearchParams()
-      if (selectedMonth) params.append('month', selectedMonth)
+      if (selectedMonth && selectedMonth !== 'all') params.append('month', selectedMonth)
       if (selectedYear) params.append('year', selectedYear)
       if (params.toString()) url += `?${params.toString()}`
       
@@ -473,7 +473,7 @@ export default function InvoicesOutgoingPage() {
                       <SelectValue placeholder="Semua Bulan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Semua Bulan</SelectItem>
+                      <SelectItem value="all">Semua Bulan</SelectItem>
                       {months.map(month => (
                         <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
                       ))}
