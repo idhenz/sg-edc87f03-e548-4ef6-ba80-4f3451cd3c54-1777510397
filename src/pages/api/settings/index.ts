@@ -4,27 +4,40 @@ import { query } from '@/lib/db'
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     if (req.method === 'GET') {
-      const [settings]: any = await query('SELECT * FROM settings WHERE id = 1')
-      
-      if (!settings) {
-        // Jika belum ada data settings, return default
+      try {
+        const connection = await connectDB()
+        const [rows] = await connection.execute(
+          'SELECT id, isp_name, isp_address, isp_phone, isp_email, logo_url, invoice_footer, invoice_whatsapp, tax_percentage FROM settings ORDER BY id DESC LIMIT 1'
+        )
+        await connection.end()
+
+        const settings = (rows as any[])[0] || {}
+        
+        console.log('=== SETTINGS API GET ===')
+        console.log('Logo URL:', settings.logo_url)
+        console.log('ISP Name:', settings.isp_name)
+        console.log('========================')
+
+        // Fetch banks
+        const banksRes = await connectDB()
+        const [banksRows] = await banksRes.execute(
+          'SELECT id, bank_name, account_number, account_holder, is_active FROM banks WHERE is_active = 1 ORDER BY id ASC'
+        )
+        await banksRes.end()
+
         return res.status(200).json({
           settings: {
-            id: 1,
-            isp_name: 'Nama ISP Anda',
-            isp_address: '',
-            isp_phone: '',
-            tax_percentage: 11.00,
-            logo_url: null,
-            invoice_whatsapp: '',
-            bank_name: '',
-            bank_account_number: '',
-            bank_account_name: '',
+            ...settings,
+            banks: banksRows
           }
         })
+      } catch (error: any) {
+        console.error('Settings API Error:', error)
+        return res.status(500).json({
+          message: 'Terjadi kesalahan pada server',
+          error: error.message,
+        })
       }
-      
-      return res.status(200).json({ settings })
     }
 
     if (req.method === 'PUT') {

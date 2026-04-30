@@ -357,6 +357,30 @@ export default function InvoicesOutgoingPage() {
       const whatsappContact = settingsData?.invoice_whatsapp || '-'
       const taxPercentage = settingsData?.tax_percentage || 0
 
+      console.log('=== SETTINGS DATA ===')
+      console.log('Company Name:', companyName)
+      console.log('Logo URL:', logoUrl)
+      console.log('Tax Percentage:', taxPercentage)
+      console.log('=====================')
+
+      // Convert logo to base64 if available for better PDF rendering
+      let logoBase64 = ''
+      if (logoUrl) {
+        try {
+          const imgResponse = await fetch(logoUrl)
+          const blob = await imgResponse.blob()
+          logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          console.log('Logo converted to base64 successfully')
+        } catch (error) {
+          console.warn('Failed to load logo, will use URL directly:', error)
+          logoBase64 = logoUrl
+        }
+      }
+
       // Calculate amounts
       const amount = parseFloat(invoice.amount)
       const tax = parseFloat(invoice.tax || '0')
@@ -390,7 +414,7 @@ export default function InvoicesOutgoingPage() {
           <!-- Header -->
           <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px;">
             <div style="flex: 1;">
-              ${logoUrl ? `<img src="${logoUrl}" style="max-width: 180px; max-height: 70px; margin-bottom: 10px;" />` : ''}
+              ${logoBase64 ? `<img src="${logoBase64}" crossorigin="anonymous" style="max-width: 180px; max-height: 70px; margin-bottom: 10px; object-fit: contain;" />` : ''}
               <div style="font-size: 20px; font-weight: 600; color: #1e40af; margin-bottom: 8px;">${companyName}</div>
               <div style="font-size: 12px; color: #64748b; line-height: 1.6;">
                 ${companyAddress}<br/>
@@ -508,6 +532,7 @@ export default function InvoicesOutgoingPage() {
       const canvas = await html2canvas(tempDiv, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff'
       })
