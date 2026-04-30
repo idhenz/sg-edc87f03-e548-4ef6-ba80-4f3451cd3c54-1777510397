@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { Printer, ArrowLeft, Download } from 'lucide-react'
+import { Printer, ArrowLeft, Download, Building2, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function InvoicePrintPage() {
@@ -244,21 +244,46 @@ export default function InvoicePrintPage() {
 
             {/* Footer / Bank Info */}
             <div className="border-t pt-8 grid grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  Metode Pembayaran
-                </h3>
-                <div className="space-y-3">
-                  {banks.map(bank => (
-                    <div key={bank.id} className="text-sm">
-                      <p className="font-bold text-slate-900">{bank.bank_name}</p>
-                      <p className="font-mono text-slate-600">{bank.account_number}</p>
-                      <p className="text-slate-500">a.n. {bank.account_holder}</p>
-                    </div>
-                  ))}
-                  {banks.length === 0 && (
-                    <p className="text-sm text-slate-500 italic">Informasi rekening belum diatur.</p>
-                  )}
+              {/* Payment Information */}
+              <div className="border-2 border-blue-500 rounded-lg p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-blue-600">Informasi Pembayaran</h3>
+                </div>
+
+                {settings?.banks && settings.banks.length > 0 ? (
+                  <div className="space-y-4">
+                    {settings.banks.map((bank: any, idx: number) => (
+                      <div key={idx} className="bg-blue-50/50 p-4 rounded border border-blue-200">
+                        <div className="text-sm text-gray-600 mb-1">{bank.bank_name}</div>
+                        <div className="text-xl font-bold text-gray-900">{bank.account_number}</div>
+                        <div className="text-sm text-gray-600 mt-1">a/n {bank.account_holder}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-blue-50/50 p-4 rounded border border-blue-200">
+                    <div className="text-sm text-gray-600">Informasi bank belum tersedia</div>
+                  </div>
+                )}
+
+                <div className="border-t-2 border-blue-300 pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
+                    <h4 className="font-semibold text-blue-600">Konfirmasi Pembayaran:</h4>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p>Silakan konfirmasi pembayaran Anda melalui:</p>
+                    <p>
+                      <span className="font-semibold">WhatsApp:</span> {settings?.whatsapp || '628111112223'}
+                    </p>
+                    <p>
+                      <span className="font-semibold">Email:</span> {settings?.email || '-'}
+                    </p>
+                    <p className="italic text-gray-600 mt-2">
+                      Sertakan bukti transfer dan nomor invoice
+                    </p>
+                  </div>
                 </div>
               </div>
               
