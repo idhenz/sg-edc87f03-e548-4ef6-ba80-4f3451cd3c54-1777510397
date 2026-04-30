@@ -1,24 +1,35 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
-import fs from 'fs'
-import path from 'path'
+import { getAuthUser } from '@/lib/auth'
+import { deleteFile } from '@/lib/biznetStorage'
 
-// Helper untuk menghapus file
-function deleteFile(fileName: string | null) {
-  if (!fileName) return
-  
-  try {
-    const filePath = path.join(process.cwd(), 'public', fileName)
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
-    }
-  } catch (error) {
-    console.error('Error deleting file:', error)
-  }
+interface Customer {
+  id: number
+  name: string
+  email: string
+  phone: string
+  address: string
+  status: string
+  customer_type: string
+  province_id: number | null
+  regency_id: number | null
+  district_id: number | null
+  village_id: number | null
+  ktp_file: string | null
+  npwp_file: string | null
+  nib_file: string | null
+  sertifikat_standar_file: string | null
+  created_at: string
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    // Verify authentication
+    const user = getAuthUser(req)
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
     if (req.method === 'GET') {
       const customers = await query(`
         SELECT 

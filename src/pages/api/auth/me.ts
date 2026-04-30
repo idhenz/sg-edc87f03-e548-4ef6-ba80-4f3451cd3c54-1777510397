@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import cookie from 'cookie'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -7,23 +6,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    console.log('Auth check - Headers:', req.headers.cookie ? 'Cookie present' : 'No cookie')
+    const authHeader = req.headers.authorization
     
-    const cookies = cookie.parse(req.headers.cookie || '')
-    const session = cookies.session
-
-    if (!session) {
-      console.log('Auth check - No session cookie found')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: 'Not authenticated' })
     }
 
-    console.log('Auth check - Session cookie found, parsing...')
-    const user = JSON.parse(session)
-    console.log('Auth check - User authenticated:', user.email)
+    const token = authHeader.substring(7)
     
-    return res.status(200).json({ user })
+    // Decode token
+    const userData = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'))
+    
+    // Check if token is still valid (7 days)
+    const tokenAge = Date.now() - userData.timestamp
+    const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+    
+    if (tokenAge > maxAge) {
+      return res.status(401).json({ message: 'Token expired' })
+    }
+
+    return res.status(200).json({ 
+      user: {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role
+      }
+    })
   } catch (error: any) {
     console.error('Auth check error:', error.message)
-    return res.status(401).json({ message: 'Invalid session' })
+    return res.status(401).json({ message: 'Invalid token' })
   }
 }

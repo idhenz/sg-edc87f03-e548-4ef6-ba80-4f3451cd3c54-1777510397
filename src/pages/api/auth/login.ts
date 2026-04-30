@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
-import cookie from 'cookie'
+import crypto from 'crypto'
 
 interface User {
   id: number
@@ -24,11 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Check database connection
     if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
-      console.error('Missing database configuration:', {
-        hasHost: !!process.env.DB_HOST,
-        hasUser: !!process.env.DB_USER,
-        hasDB: !!process.env.DB_NAME
-      })
+      console.error('Missing database configuration')
       return res.status(500).json({ message: 'Database configuration error. Please check environment variables.' })
     }
 
@@ -47,32 +43,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ message: 'Email atau password salah' })
     }
 
-    const sessionData = {
+    // Generate simple token (base64 encoded user data)
+    const userData = {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
+      timestamp: Date.now()
     }
 
-    // Simplified cookie settings for Vercel
-    const isProduction = process.env.NODE_ENV === 'production'
-    
-    const cookieOptions: any = {
-      httpOnly: true,
-      secure: isProduction,
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    }
-
-    // Only set sameSite in production
-    if (isProduction) {
-      cookieOptions.sameSite = 'lax'
-    }
-
-    res.setHeader('Set-Cookie', cookie.serialize('session', JSON.stringify(sessionData), cookieOptions))
+    const token = Buffer.from(JSON.stringify(userData)).toString('base64')
 
     console.log('Login successful for:', email)
-    return res.status(200).json({ user: sessionData })
+    
+    return res.status(200).json({ 
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token 
+    })
   } catch (error: any) {
     console.error('Login error:', error)
     return res.status(500).json({ 

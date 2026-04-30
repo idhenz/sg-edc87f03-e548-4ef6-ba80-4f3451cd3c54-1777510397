@@ -28,15 +28,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      const token = localStorage.getItem('auth_token')
+      
+      if (!token) {
+        setIsLoading(false)
+        return
+      }
+
       const res = await fetch('/api/auth/me', {
-        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
+
       if (res.ok) {
         const data = await res.json()
         setUser(data.user)
+      } else {
+        // Token invalid or expired
+        localStorage.removeItem('auth_token')
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      localStorage.removeItem('auth_token')
     } finally {
       setIsLoading(false)
     }
@@ -46,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ email, password }),
     })
 
@@ -56,15 +69,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await res.json()
+    
+    // Save token to localStorage
+    localStorage.setItem('auth_token', data.token)
+    
     setUser(data.user)
     router.push('/dashboard')
   }
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { 
-      method: 'POST',
-      credentials: 'include',
-    })
+    await fetch('/api/auth/logout', { method: 'POST' })
+    
+    // Clear token from localStorage
+    localStorage.removeItem('auth_token')
+    
     setUser(null)
     router.push('/login')
   }
