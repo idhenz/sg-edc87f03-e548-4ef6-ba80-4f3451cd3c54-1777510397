@@ -33,15 +33,43 @@ export default function SettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/settings')
+      const token = localStorage.getItem('auth_token')
+      const res = await fetch('/api/settings', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const data = await res.json()
-      setSettings(data.settings)
-      setLogoPreview(data.settings.logo_url)
+      
+      console.log('=== SETTINGS PAGE - FETCH ===')
+      console.log('API Response:', data)
+      
+      if (data.settings) {
+        const settingsData = data.settings
+        console.log('Setting form data:', settingsData)
+        
+        setFormData({
+          isp_name: settingsData.isp_name || '',
+          isp_address: settingsData.isp_address || '',
+          isp_phone: settingsData.isp_phone || '',
+          isp_email: settingsData.isp_email || '',
+          logo_url: settingsData.logo_url || '',
+          invoice_whatsapp: settingsData.invoice_whatsapp || '',
+          tax_percentage: settingsData.tax_percentage?.toString() || '11',
+          bank_name: settingsData.bank_name || '',
+          bank_account_number: settingsData.bank_account_number || '',
+          bank_account_name: settingsData.bank_account_name || ''
+        })
+        
+        console.log('Form data set successfully')
+      }
+      console.log('=============================')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Gagal memuat pengaturan',
-        variant: 'destructive',
+      console.error('Error fetching settings:', error)
+      toast({ 
+        title: 'Error', 
+        description: 'Gagal memuat data pengaturan', 
+        variant: 'destructive' 
       })
     } finally {
       setLoading(false)
@@ -99,43 +127,49 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
     
-    const data = {
-      isp_name: formData.get('isp_name'),
-      isp_address: formData.get('isp_address'),
-      isp_phone: formData.get('isp_phone'),
-      tax_percentage: parseFloat(formData.get('tax_percentage') as string),
-      logo_url: logoPreview,
-      invoice_whatsapp: formData.get('invoice_whatsapp'),
-      bank_name: formData.get('bank_name'),
-      bank_account_number: formData.get('bank_account_number'),
-      bank_account_name: formData.get('bank_account_name'),
-    }
-
     try {
       setSaving(true)
+      const token = localStorage.getItem('auth_token')
+      
+      console.log('=== SAVING SETTINGS ===')
+      console.log('Form data to save:', formData)
+      
       const res = await fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
       })
 
-      if (!res.ok) throw new Error('Gagal menyimpan pengaturan')
-
-      toast({
-        title: 'Berhasil',
-        description: 'Pengaturan berhasil disimpan',
-      })
-
-      fetchSettings()
+      const data = await res.json()
+      
+      if (res.ok) {
+        console.log('Settings saved successfully:', data)
+        toast({ 
+          title: 'Sukses', 
+          description: 'Pengaturan berhasil disimpan' 
+        })
+        fetchSettings()
+      } else {
+        console.error('Save failed:', data)
+        toast({ 
+          title: 'Error', 
+          description: data.message || 'Gagal menyimpan pengaturan', 
+          variant: 'destructive' 
+        })
+      }
+      console.log('=======================')
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Gagal menyimpan pengaturan',
-        variant: 'destructive',
+      console.error('Error saving settings:', error)
+      toast({ 
+        title: 'Error', 
+        description: 'Terjadi kesalahan pada server', 
+        variant: 'destructive' 
       })
     } finally {
       setSaving(false)
