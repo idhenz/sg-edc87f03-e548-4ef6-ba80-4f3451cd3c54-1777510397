@@ -5,30 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Upload, Building2, CreditCard, DollarSign, Phone, Mail } from 'lucide-react'
 
-interface Settings {
-  id: number
-  isp_name: string
-  isp_address: string
-  isp_phone: string
-  tax_percentage: number
-  logo_url: string | null
-  invoice_whatsapp: string
-  bank_name: string
-  bank_account_number: string
-  bank_account_name: string
-}
-
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const [formData, setFormData] = useState({
+    isp_name: '',
+    isp_address: '',
+    isp_phone: '',
+    isp_email: '',
+    logo_url: '',
+    invoice_whatsapp: '',
+    tax_percentage: '11',
+    bank_name: '',
+    bank_account_number: '',
+    bank_account_name: ''
+  })
 
   const fetchSettings = async () => {
     try {
@@ -60,6 +58,10 @@ export default function SettingsPage() {
           bank_account_number: settingsData.bank_account_number || '',
           bank_account_name: settingsData.bank_account_name || ''
         })
+
+        if (settingsData.logo_url) {
+          setLogoPreview(settingsData.logo_url)
+        }
         
         console.log('Form data set successfully')
       }
@@ -80,6 +82,14 @@ export default function SettingsPage() {
     fetchSettings()
   }, [])
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -93,14 +103,14 @@ export default function SettingsPage() {
       return
     }
 
-    const formData = new FormData()
-    formData.append('file', file)
+    const formDataUpload = new FormData()
+    formDataUpload.append('file', file)
 
     try {
       setUploadingLogo(true)
       const res = await fetch('/api/settings/upload-logo', {
         method: 'POST',
-        body: formData,
+        body: formDataUpload,
       })
 
       if (!res.ok) throw new Error('Upload gagal')
@@ -108,9 +118,10 @@ export default function SettingsPage() {
       const data = await res.json()
       setLogoPreview(data.fileUrl)
       
-      if (settings) {
-        setSettings({ ...settings, logo_url: data.fileUrl })
-      }
+      setFormData(prev => ({
+        ...prev,
+        logo_url: data.fileUrl
+      }))
 
       toast({
         title: 'Berhasil',
@@ -193,67 +204,96 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold">Pengaturan Sistem</h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Informasi ISP */}
+            {/* Informasi Perusahaan */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Informasi ISP
+                  Informasi Perusahaan
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="isp_name">Nama ISP *</Label>
+                  <div>
+                    <Label htmlFor="isp_name">Nama Perusahaan</Label>
                     <Input
                       id="isp_name"
                       name="isp_name"
-                      defaultValue={settings?.isp_name}
-                      required
+                      value={formData.isp_name}
+                      onChange={handleInputChange}
+                      placeholder="PT. Internet Service Provider"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="isp_phone">Telepon ISP</Label>
+                  <div>
+                    <Label htmlFor="isp_phone">Nomor Telepon</Label>
                     <Input
                       id="isp_phone"
                       name="isp_phone"
-                      placeholder="08xx-xxxx-xxxx"
-                      defaultValue={settings?.isp_phone}
+                      value={formData.isp_phone}
+                      onChange={handleInputChange}
+                      placeholder="021-1234567"
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="isp_address">Alamat ISP</Label>
-                    <Textarea
-                      id="isp_address"
-                      name="isp_address"
-                      rows={3}
-                      defaultValue={settings?.isp_address}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="isp_email">Email Perusahaan</Label>
+                    <Input
+                      id="isp_email"
+                      name="isp_email"
+                      type="email"
+                      value={formData.isp_email}
+                      onChange={handleInputChange}
+                      placeholder="info@perusahaan.com"
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="logo">Logo ISP</Label>
-                    <div className="flex items-center gap-4">
-                      {logoPreview && (
-                        <div className="w-24 h-24 border rounded-lg overflow-hidden flex items-center justify-center bg-muted">
-                          <img 
-                            src={logoPreview} 
-                            alt="Logo ISP" 
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <Input
-                          id="logo"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          disabled={uploadingLogo}
+                  <div>
+                    <Label htmlFor="invoice_whatsapp">WhatsApp Konfirmasi</Label>
+                    <Input
+                      id="invoice_whatsapp"
+                      name="invoice_whatsapp"
+                      value={formData.invoice_whatsapp}
+                      onChange={handleInputChange}
+                      placeholder="628123456789"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="isp_address">Alamat Perusahaan</Label>
+                  <Input
+                    id="isp_address"
+                    name="isp_address"
+                    value={formData.isp_address}
+                    onChange={handleInputChange}
+                    placeholder="Jl. Raya No. 123, Jakarta"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="logo">Logo Perusahaan</Label>
+                  <div className="flex items-center gap-4">
+                    {logoPreview && (
+                      <div className="w-24 h-24 border rounded-lg overflow-hidden flex items-center justify-center bg-muted">
+                        <img 
+                          src={logoPreview} 
+                          alt="Logo Perusahaan" 
+                          className="max-w-full max-h-full object-contain"
                         />
-                        {uploadingLogo && (
-                          <span className="text-sm text-muted-foreground">Uploading...</span>
-                        )}
                       </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        id="logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        disabled={uploadingLogo}
+                      />
+                      {uploadingLogo && (
+                        <span className="text-sm text-muted-foreground">Uploading...</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -278,8 +318,9 @@ export default function SettingsPage() {
                     step="0.01"
                     min="0"
                     max="100"
+                    value={formData.tax_percentage}
+                    onChange={handleInputChange}
                     placeholder="11.00"
-                    defaultValue={settings?.tax_percentage}
                     required
                   />
                   <p className="text-sm text-muted-foreground">
@@ -299,57 +340,36 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="bank_name">Nama Bank</Label>
                     <Input
                       id="bank_name"
                       name="bank_name"
+                      value={formData.bank_name}
+                      onChange={handleInputChange}
                       placeholder="Contoh: BCA"
-                      defaultValue={settings?.bank_name}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div>
                     <Label htmlFor="bank_account_number">Nomor Rekening</Label>
                     <Input
                       id="bank_account_number"
                       name="bank_account_number"
+                      value={formData.bank_account_number}
+                      onChange={handleInputChange}
                       placeholder="1234567890"
-                      defaultValue={settings?.bank_account_number}
                     />
                   </div>
-                  <div className="space-y-2 col-span-2">
+                  <div className="col-span-2">
                     <Label htmlFor="bank_account_name">Nama Pemilik Rekening</Label>
                     <Input
                       id="bank_account_name"
                       name="bank_account_name"
+                      value={formData.bank_account_name}
+                      onChange={handleInputChange}
                       placeholder="Nama sesuai rekening bank"
-                      defaultValue={settings?.bank_account_name}
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Kontak Invoice */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
-                  Kontak Konfirmasi Invoice
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-w-md">
-                  <Label htmlFor="invoice_whatsapp">Nomor WhatsApp</Label>
-                  <Input
-                    id="invoice_whatsapp"
-                    name="invoice_whatsapp"
-                    placeholder="628xxxxxxxxxx"
-                    defaultValue={settings?.invoice_whatsapp}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Format: 628xxxxxxxxxx (tanpa +)
-                  </p>
                 </div>
               </CardContent>
             </Card>
