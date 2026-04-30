@@ -1129,7 +1129,7 @@ export default function InvoicesOutgoingPage() {
 
         {/* PDF Preview Modal */}
         <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogContent className="max-w-5xl h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <span>Preview Invoice PDF</span>
@@ -1155,9 +1155,9 @@ export default function InvoicesOutgoingPage() {
                 </div>
               </DialogTitle>
             </DialogHeader>
-            <div className="flex-1 overflow-hidden bg-gray-100">
+            <div className="flex-1 w-full h-full min-h-[75vh] bg-gray-100 rounded-md overflow-hidden border relative">
               {isGeneratingPdf ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full absolute inset-0">
                   <div className="text-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                     <p className="text-muted-foreground">Membuat PDF...</p>
@@ -1166,11 +1166,11 @@ export default function InvoicesOutgoingPage() {
               ) : pdfBlob ? (
                 <iframe
                   src={pdfBlob}
-                  className="w-full h-full border-0"
+                  className="w-full h-full absolute inset-0 border-0"
                   title="PDF Preview"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full absolute inset-0">
                   <p className="text-muted-foreground">Gagal memuat PDF</p>
                 </div>
               )}
