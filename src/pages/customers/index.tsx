@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, FileText, Zap, History, User, Building2, Users, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, Zap, History, User, Building2, Users, Filter, ChevronLeft, ChevronRight, Activity, CheckCircle, XCircle } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -39,6 +39,17 @@ interface Customer {
   current_vendor_id?: number
   current_vendor_name?: string
   subscription_status?: string
+  pppoe_username?: string
+  pppoe_online?: boolean
+  pppoe_ip?: string
+  pppoe_uptime?: string
+  pppoe_last_login?: string
+}
+
+interface PPPoESecret {
+  id: number
+  username: string
+  router_name: string
 }
 
 interface Region {
@@ -140,6 +151,7 @@ export default function CustomersPage() {
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null)
   const [activationHistory, setActivationHistory] = useState<ActivationHistory[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [pppoeSecrets, setPppoeSecrets] = useState<PPPoESecret[]>([])
 
   const fetchCustomers = async () => {
     try {
@@ -229,6 +241,18 @@ export default function CustomersPage() {
       setVendors(data.vendors || [])
     } catch (error) {
       console.error('Failed to fetch vendors:', error)
+    }
+  }
+
+  const fetchPPPoESecrets = async () => {
+    try {
+      const res = await fetch('/api/pppoe?available=true')
+      if (res.ok) {
+        const data = await res.json()
+        setPppoeSecrets(data)
+      }
+    } catch (error) {
+      console.error('Error fetching PPPoE secrets:', error)
     }
   }
 
@@ -330,6 +354,10 @@ export default function CustomersPage() {
       setVillages([])
     }
   }, [selectedDistrict])
+
+  useEffect(() => {
+    fetchPPPoESecrets()
+  }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
     const file = e.target.files?.[0]
@@ -923,6 +951,27 @@ export default function CustomersPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pppoe_secret_id">Akun PPPoE (Opsional)</Label>
+                      <Select
+                        value={(formData as any).pppoe_secret_id?.toString() || ''}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, pppoe_secret_id: value ? parseInt(value) : null })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih akun PPPoE" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Tidak ada</SelectItem>
+                          {pppoeSecrets.map((secret) => (
+                            <SelectItem key={secret.id} value={secret.id.toString()}>
+                              {secret.username} ({secret.router_name})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="border-t pt-4">
@@ -1025,13 +1074,15 @@ export default function CustomersPage() {
                       <TableHead>Telepon</TableHead>
                       <TableHead>Paket Aktif</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>PPPoE</TableHead>
+                      <TableHead>Koneksi</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedCustomers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           Tidak ada data pelanggan
                         </TableCell>
                       </TableRow>
@@ -1061,6 +1112,28 @@ export default function CustomersPage() {
                             <Badge variant={customer.subscription_status === 'active' ? 'default' : 'secondary'}>
                               {customer.subscription_status === 'active' ? 'Aktif' : 'Non-aktif'}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {customer.pppoe_username || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {customer.pppoe_username ? (
+                              <Badge variant={customer.pppoe_online ? 'default' : 'secondary'}>
+                                {customer.pppoe_online ? (
+                                  <>
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Online
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Offline
+                                  </>
+                                )}
+                              </Badge>
+                            ) : (
+                              '-'
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">

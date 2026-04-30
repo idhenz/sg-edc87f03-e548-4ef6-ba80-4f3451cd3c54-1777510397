@@ -22,6 +22,148 @@ interface Customer {
   created_at: string
 }
 
+async function handleGet(req: NextApiRequest, res: NextApiResponse) {
+  const { id, search } = req.query
+
+  if (id) {
+    const customer = await query(
+      `SELECT c.*, 
+        ps.username as pppoe_username,
+        ps.is_active as pppoe_online,
+        ps.remote_address as pppoe_ip,
+        ps.uptime as pppoe_uptime,
+        ps.last_login as pppoe_last_login
+      FROM customers c
+      LEFT JOIN pppoe_secrets ps ON c.pppoe_secret_id = ps.id
+      WHERE c.id = ?`,
+      [id]
+    )
+    return res.status(200).json(customer[0] || null)
+  }
+
+  let sql = `
+    SELECT c.*,
+      ps.username as pppoe_username,
+      ps.is_active as pppoe_online
+    FROM customers c
+    LEFT JOIN pppoe_secrets ps ON c.pppoe_secret_id = ps.id
+  `
+  const params: any[] = []
+
+  if (search) {
+    sql += ' WHERE c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ?'
+    const searchPattern = `%${search}%`
+    params.push(searchPattern, searchPattern, searchPattern)
+  }
+
+  sql += ' ORDER BY c.created_at DESC'
+
+  const customers = await query(sql, params)
+  return res.status(200).json(customers)
+}
+
+async function handlePost(req: NextApiRequest, res: NextApiResponse, user: any) {
+  const {
+    name, email, phone, address, province_id, regency_id, district_id, village_id,
+    postal_code, installation_address, installation_province_id, installation_regency_id,
+    installation_district_id, installation_village_id, installation_postal_code,
+    status, notes, reseller_id, pppoe_secret_id
+  } = req.body
+
+  if (!name || !phone) {
+    return res.status(400).json({ message: 'Nama dan telepon wajib diisi' })
+  }
+
+  if (pppoe_secret_id) {
+    const existingPPPoE = await query(
+      'SELECT id FROM customers WHERE pppoe_secret_id = ? AND id != ?',
+      [pppoe_secret_id, 0]
+    )
+    if (existingPPPoE && existingPPPoE.length > 0) {
+      return res.status(400).json({ message: 'Akun PPPoE ini sudah digunakan pelanggan lain' })
+    }
+  }
+
+  const result = await query(
+    `INSERT INTO customers (
+      name, email, phone, address, province_id, regency_id, district_id, village_id,
+      postal_code, installation_address, installation_province_id, installation_regency_id,
+      installation_district_id, installation_village_id, installation_postal_code,
+      status, notes, reseller_id, pppoe_secret_id, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      name, email, phone, address, province_id, regency_id, district_id, village_id,
+      postal_code, installation_address, installation_province_id, installation_regency_id,
+      installation_district_id, installation_village_id, installation_postal_code,
+      status, notes, reseller_id, pppoe_secret_id, user.id
+    ]
+  )
+
+  if (pppoe_secret_id) {
+    await query('UPDATE pppoe_secrets SET customer_id = ? WHERE id = ?', [
+      (result as any).insertId,
+      pppoe_secret_id
+    ])
+  }
+
+  return res.status(201).json({
+    message: 'Pelanggan berhasil ditambahkan',
+    id: (result as any).insertId
+  })
+}
+
+async function handlePut(req: NextApiRequest, res: NextApiResponse, user: any) {
+  const {
+    id, name, email, phone, address, province_id, regency_id, district_id, village_id,
+    postal_code, installation_address, installation_province_id, installation_regency_id,
+    installation_district_id, installation_village_id, installation_postal_code,
+    status, notes, reseller_id, pppoe_secret_id
+  } = req.body
+
+  if (!id) {
+    return res.status(400).json({ message: 'ID pelanggan diperlukan' })
+  }
+
+  if (pppoe_secret_id) {
+    const existingPPPoE = await query(
+      'SELECT id FROM customers WHERE pppoe_secret_id = ? AND id != ?',
+      [pppoe_secret_id, id]
+    )
+    if (existingPPPoE && existingPPPoE.length > 0) {
+      return res.status(400).json({ message: 'Akun PPPoE ini sudah digunakan pelanggan lain' })
+    }
+  }
+
+  const oldCustomer = await query('SELECT pppoe_secret_id FROM customers WHERE id = ?', [id])
+  const oldPPPoEId = oldCustomer[0]?.pppoe_secret_id
+
+  await query(
+    `UPDATE customers SET
+      name = ?, email = ?, phone = ?, address = ?, province_id = ?, regency_id = ?,
+      district_id = ?, village_id = ?, postal_code = ?, installation_address = ?,
+      installation_province_id = ?, installation_regency_id = ?, installation_district_id = ?,
+      installation_village_id = ?, installation_postal_code = ?, status = ?, notes = ?,
+      reseller_id = ?, pppoe_secret_id = ?
+    WHERE id = ?`,
+    [
+      name, email, phone, address, province_id, regency_id, district_id, village_id,
+      postal_code, installation_address, installation_province_id, installation_regency_id,
+      installation_district_id, installation_village_id, installation_postal_code,
+      status, notes, reseller_id, pppoe_secret_id, id
+    ]
+  )
+
+  if (oldPPPoEId && oldPPPoEId !== pppoe_secret_id) {
+    await query('UPDATE pppoe_secrets SET customer_id = NULL WHERE id = ?', [oldPPPoEId])
+  }
+
+  if (pppoe_secret_id) {
+    await query('UPDATE pppoe_secrets SET customer_id = ? WHERE id = ?', [id, pppoe_secret_id])
+  }
+
+  return res.status(200).json({ message: 'Pelanggan berhasil diperbarui' })
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Verify authentication
@@ -31,144 +173,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET') {
-      const customers = await query(`
-        SELECT 
-          c.*,
-          p.nama as province_name,
-          k.nama as regency_name,
-          kec.nama as district_name,
-          kel.nama as village_name,
-          prod.name as current_product_name,
-          prod.speed as current_product_speed,
-          v.name as current_vendor_name
-        FROM customers c
-        LEFT JOIN t_provinsi p ON CAST(c.province_id AS CHAR) = CAST(p.id AS CHAR)
-        LEFT JOIN t_kota k ON CAST(c.regency_id AS CHAR) = CAST(k.id AS CHAR)
-        LEFT JOIN t_kecamatan kec ON CAST(c.district_id AS CHAR) = CAST(kec.id AS CHAR)
-        LEFT JOIN t_kelurahan kel ON CAST(c.village_id AS CHAR) = CAST(kel.id AS CHAR)
-        LEFT JOIN products prod ON c.current_product_id = prod.id
-        LEFT JOIN vendors v ON c.current_vendor_id = v.id
-        ORDER BY c.id DESC
-      `)
-      return res.status(200).json({ customers })
+      await handleGet(req, res)
+      return
     }
 
     if (req.method === 'POST') {
-      const { 
-        name, email, phone, address, status, customer_type,
-        province_id, regency_id, district_id, village_id,
-        ktp_file, npwp_file, nib_file, sertifikat_standar_file
-      } = req.body
-      
-      // Convert empty strings to null
-      const cleanProvinceId = province_id && province_id !== '' ? province_id : null
-      const cleanRegencyId = regency_id && regency_id !== '' ? regency_id : null
-      const cleanDistrictId = district_id && district_id !== '' ? district_id : null
-      const cleanVillageId = village_id && village_id !== '' ? village_id : null
-      
-      await query(
-        `INSERT INTO customers 
-        (name, email, phone, address, status, customer_type, 
-         province_id, regency_id, district_id, village_id,
-         ktp_file, npwp_file, nib_file, sertifikat_standar_file) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          name, 
-          email, 
-          phone, 
-          address, 
-          status || 'active', 
-          customer_type || 'personal', 
-          cleanProvinceId,
-          cleanRegencyId,
-          cleanDistrictId,
-          cleanVillageId,
-          ktp_file || null, 
-          npwp_file || null, 
-          nib_file || null, 
-          sertifikat_standar_file || null
-        ]
-      )
-      
-      return res.status(201).json({ message: 'Pelanggan berhasil ditambahkan' })
+      await handlePost(req, res, user)
+      return
     }
 
     if (req.method === 'PUT') {
-      const { id } = req.query
-      const { 
-        name, email, phone, address, status, customer_type,
-        province_id, regency_id, district_id, village_id,
-        ktp_file, npwp_file, nib_file, sertifikat_standar_file,
-        delete_ktp, delete_npwp, delete_nib, delete_sertifikat
-      } = req.body
-      
-      // Convert empty strings to null
-      const cleanProvinceId = province_id && province_id !== '' ? province_id : null
-      const cleanRegencyId = regency_id && regency_id !== '' ? regency_id : null
-      const cleanDistrictId = district_id && district_id !== '' ? district_id : null
-      const cleanVillageId = village_id && village_id !== '' ? village_id : null
-      
-      // Ambil data lama untuk menghapus file yang diganti
-      const [oldData]: any = await query('SELECT * FROM customers WHERE id = ?', [id])
-      
-      // Hapus file lama jika ada file baru atau diminta dihapus
-      if (delete_ktp && oldData.ktp_file) deleteFile(oldData.ktp_file)
-      if (delete_npwp && oldData.npwp_file) deleteFile(oldData.npwp_file)
-      if (delete_nib && oldData.nib_file) deleteFile(oldData.nib_file)
-      if (delete_sertifikat && oldData.sertifikat_standar_file) deleteFile(oldData.sertifikat_standar_file)
-      
-      if (ktp_file && ktp_file !== oldData.ktp_file && oldData.ktp_file) {
-        deleteFile(oldData.ktp_file)
-      }
-      if (npwp_file && npwp_file !== oldData.npwp_file && oldData.npwp_file) {
-        deleteFile(oldData.npwp_file)
-      }
-      if (nib_file && nib_file !== oldData.nib_file && oldData.nib_file) {
-        deleteFile(oldData.nib_file)
-      }
-      if (sertifikat_standar_file && sertifikat_standar_file !== oldData.sertifikat_standar_file && oldData.sertifikat_standar_file) {
-        deleteFile(oldData.sertifikat_standar_file)
-      }
-      
-      await query(
-        `UPDATE customers 
-        SET name = ?, email = ?, phone = ?, address = ?, status = ?, customer_type = ?,
-            province_id = ?, regency_id = ?, district_id = ?, village_id = ?,
-            ktp_file = ?, npwp_file = ?, nib_file = ?, sertifikat_standar_file = ?
-        WHERE id = ?`,
-        [
-          name, email, phone, address, status, customer_type,
-          cleanProvinceId,
-          cleanRegencyId,
-          cleanDistrictId,
-          cleanVillageId,
-          delete_ktp ? null : (ktp_file || oldData.ktp_file || null),
-          delete_npwp ? null : (npwp_file || oldData.npwp_file || null),
-          delete_nib ? null : (nib_file || oldData.nib_file || null),
-          delete_sertifikat ? null : (sertifikat_standar_file || oldData.sertifikat_standar_file || null),
-          id
-        ]
-      )
-      
-      return res.status(200).json({ message: 'Data pelanggan berhasil diperbarui' })
-    }
-
-    if (req.method === 'DELETE') {
-      const { id } = req.query
-      
-      // Ambil data untuk menghapus file terkait
-      const [customer]: any = await query('SELECT * FROM customers WHERE id = ?', [id])
-      
-      if (customer) {
-        // Hapus semua file terkait
-        if (customer.ktp_file) deleteFile(customer.ktp_file)
-        if (customer.npwp_file) deleteFile(customer.npwp_file)
-        if (customer.nib_file) deleteFile(customer.nib_file)
-        if (customer.sertifikat_standar_file) deleteFile(customer.sertifikat_standar_file)
-      }
-      
-      await query('DELETE FROM customers WHERE id = ?', [id])
-      return res.status(200).json({ message: 'Pelanggan berhasil dihapus' })
+      await handlePut(req, res, user)
+      return
     }
 
     return res.status(405).json({ message: 'Method not allowed' })
