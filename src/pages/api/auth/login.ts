@@ -22,6 +22,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Email dan password wajib diisi' })
     }
 
+    // Check database connection
+    if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
+      console.error('Missing database configuration')
+      return res.status(500).json({ message: 'Database configuration error. Please check environment variables.' })
+    }
+
     const users = await query<User>(
       'SELECT id, name, email, password, role FROM users WHERE email = ?',
       [email]
@@ -44,17 +50,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: user.role,
     }
 
+    // Set cookie with production-ready settings
     res.setHeader('Set-Cookie', cookie.serialize('session', JSON.stringify(sessionData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 7,
-      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
     }))
 
     return res.status(200).json({ user: sessionData })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error)
-    return res.status(500).json({ message: 'Terjadi kesalahan pada server' })
+    return res.status(500).json({ 
+      message: 'Terjadi kesalahan pada server',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    })
   }
 }

@@ -16,7 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const user = JSON.parse(session)
     return res.status(200).json({ user })
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Auth check error:', error)
     return res.status(401).json({ message: 'Invalid session' })
   }
 }
