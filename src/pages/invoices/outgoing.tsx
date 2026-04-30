@@ -21,6 +21,8 @@ interface Invoice {
   package_name: string
   due_date: string
   amount: string
+  tax: string
+  total_amount: string
   paid_amount?: string
   status: string
   invoice_type: string
@@ -175,7 +177,7 @@ export default function InvoicesOutgoingPage() {
 
   const openPaymentDialog = (invoice: Invoice) => {
     setSelectedInvoice(invoice)
-    const remaining = parseFloat(invoice.amount) - parseFloat(invoice.paid_amount || '0')
+    const remaining = parseFloat(invoice.total_amount || invoice.amount) - parseFloat(invoice.paid_amount || '0')
     setPaymentAmount(remaining.toString())
     setPaymentData({
       bank_id: '',
@@ -238,7 +240,7 @@ export default function InvoicesOutgoingPage() {
     
     if (!selectedInvoice) return
 
-    const remaining = parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')
+    const remaining = parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')
     const inputAmount = parseFloat(paymentData.amount)
     
     if (inputAmount > remaining) {
@@ -549,7 +551,7 @@ export default function InvoicesOutgoingPage() {
   const pendingInvoices = filteredInvoices.filter(inv => inv.status === 'pending' || inv.status === 'partial')
   const totalPaid = filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.paid_amount || '0'), 0)
   const totalUnpaid = filteredInvoices.reduce((sum, inv) => {
-    const remaining = parseFloat(inv.amount) - parseFloat(inv.paid_amount || '0')
+    const remaining = parseFloat(inv.total_amount || inv.amount) - parseFloat(inv.paid_amount || '0')
     return sum + remaining
   }, 0)
 
@@ -715,6 +717,8 @@ export default function InvoicesOutgoingPage() {
                     <TableHead>Tanggal Invoice</TableHead>
                     <TableHead>Tgl Jatuh Tempo</TableHead>
                     <TableHead>Jenis</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                    <TableHead className="text-right">Tax</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Terbayar</TableHead>
                     <TableHead>Status</TableHead>
@@ -724,7 +728,7 @@ export default function InvoicesOutgoingPage() {
                 <TableBody>
                   {filteredInvoices.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center text-muted-foreground">
                         Tidak ada data invoice
                       </TableCell>
                     </TableRow>
@@ -741,6 +745,12 @@ export default function InvoicesOutgoingPage() {
                         </TableCell>
                         <TableCell className="text-right font-mono">
                           Rp {parseFloat(invoice.amount).toLocaleString('id-ID')}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-muted-foreground">
+                          Rp {parseFloat(invoice.tax || '0').toLocaleString('id-ID')}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold">
+                          Rp {parseFloat(invoice.total_amount || invoice.amount).toLocaleString('id-ID')}
                         </TableCell>
                         <TableCell className="text-right font-mono text-green-600">
                           Rp {parseFloat(invoice.paid_amount || '0').toLocaleString('id-ID')}
@@ -943,8 +953,16 @@ export default function InvoicesOutgoingPage() {
                       <p className="font-semibold">{selectedInvoice.customer_name}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Total Tagihan</p>
+                      <p className="text-muted-foreground">Subtotal</p>
                       <p className="font-semibold">Rp {parseFloat(selectedInvoice.amount).toLocaleString('id-ID')}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Tax</p>
+                      <p className="font-semibold">Rp {parseFloat(selectedInvoice.tax || '0').toLocaleString('id-ID')}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Tagihan</p>
+                      <p className="font-semibold text-lg">Rp {parseFloat(selectedInvoice.total_amount || selectedInvoice.amount).toLocaleString('id-ID')}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Sudah Dibayar</p>
@@ -953,7 +971,7 @@ export default function InvoicesOutgoingPage() {
                     <div className="col-span-2">
                       <p className="text-muted-foreground">Sisa Tagihan</p>
                       <p className="font-bold text-xl text-orange-600">
-                        Rp {(parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')).toLocaleString('id-ID')}
+                        Rp {(parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')).toLocaleString('id-ID')}
                       </p>
                     </div>
                   </div>

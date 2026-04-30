@@ -67,10 +67,12 @@ export default function InvoicePrintPage() {
   }
 
   const amount = parseFloat(invoice.amount)
+  const tax = parseFloat(invoice.tax || '0')
+  const totalAmount = parseFloat(invoice.total_amount || invoice.amount)
   const paid = invoice.paid_amount !== null && invoice.paid_amount !== undefined 
     ? parseFloat(invoice.paid_amount) 
-    : (invoice.status === 'paid' ? amount : 0)
-  const remaining = amount - paid
+    : (invoice.status === 'paid' ? totalAmount : 0)
+  const remaining = totalAmount - paid
 
   const handlePrint = () => {
     window.print()
@@ -226,6 +228,16 @@ export default function InvoicePrintPage() {
                   <span>Rp {amount.toLocaleString('id-ID')}</span>
                 </div>
                 
+                <div className="flex justify-between text-slate-600">
+                  <span>Tax</span>
+                  <span>Rp {tax.toLocaleString('id-ID')}</span>
+                </div>
+
+                <div className="flex justify-between text-lg font-bold text-slate-900 border-t-2 pt-3">
+                  <span>Total</span>
+                  <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
+                </div>
+                
                 {paid > 0 && (
                   <div className="flex justify-end gap-2 text-sm">
                     <div className="flex justify-between w-full text-green-600 font-medium">
@@ -235,10 +247,12 @@ export default function InvoicePrintPage() {
                   </div>
                 )}
 
-                <div className="flex justify-between text-lg font-bold text-slate-900 border-t-2 pt-3">
-                  <span>{paid > 0 ? 'Sisa Tagihan' : 'Total Tagihan'}</span>
-                  <span>Rp {remaining.toLocaleString('id-ID')}</span>
-                </div>
+                {paid > 0 && remaining > 0 && (
+                  <div className="flex justify-between text-lg font-bold text-orange-600 border-t pt-3">
+                    <span>Sisa Tagihan</span>
+                    <span>Rp {remaining.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
               </div>
             </div>
 
