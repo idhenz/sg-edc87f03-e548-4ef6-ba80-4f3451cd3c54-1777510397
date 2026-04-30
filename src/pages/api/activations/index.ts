@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import db from '@/lib/db'
+import { getConnection } from '@/lib/db'
 
 export default async function handler(
   req: NextApiRequest,
@@ -7,7 +7,7 @@ export default async function handler(
 ) {
   let connection
   try {
-    connection = await db()
+    connection = await getConnection()
 
     if (req.method === 'GET') {
       const { customer_id } = req.query
