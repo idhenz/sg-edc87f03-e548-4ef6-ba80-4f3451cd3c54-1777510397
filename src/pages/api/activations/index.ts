@@ -190,7 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
             try {
               await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
                 [
                   mrcInvoiceNumber,
                   customer.name,
