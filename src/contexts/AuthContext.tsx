@@ -10,65 +10,60 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (token: string, user: User) => void
+  login: (user: User) => void
   logout: () => void
   isAuthenticated: boolean
+  getAuthHeader: () => { [key: string]: string }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    console.log('[AUTH DEBUG] AuthProvider mounted, checking for existing token...')
-    const token = localStorage.getItem('token')
+    // Load user from localStorage on mount
     const savedUser = localStorage.getItem('user')
-    
-    console.log('[AUTH DEBUG] Token exists:', token ? 'YES' : 'NO')
-    console.log('[AUTH DEBUG] User exists:', savedUser ? 'YES' : 'NO')
-    
-    if (token && savedUser) {
+    if (savedUser) {
       try {
-        const parsedUser = JSON.parse(savedUser)
-        console.log('[AUTH DEBUG] Restored user from localStorage:', parsedUser)
-        setUser(parsedUser)
-      } catch (error) {
-        console.error('[AUTH DEBUG] Error parsing saved user:', error)
-        localStorage.removeItem('token')
+        setUser(JSON.parse(savedUser))
+      } catch (e) {
         localStorage.removeItem('user')
       }
     }
+    setIsLoading(false)
   }, [])
 
-  const login = (token: string, userData: User) => {
-    console.log('[AUTH DEBUG] login() called with token length:', token.length)
-    console.log('[AUTH DEBUG] login() called with user:', userData)
-    
-    localStorage.setItem('token', token)
+  const login = (userData: User) => {
+    console.log('[AUTH] Login:', userData.username)
     localStorage.setItem('user', JSON.stringify(userData))
-    
-    // Verify immediately
-    const verifyToken = localStorage.getItem('token')
-    const verifyUser = localStorage.getItem('user')
-    console.log('[AUTH DEBUG] Verification - Token saved:', verifyToken ? 'YES' : 'NO')
-    console.log('[AUTH DEBUG] Verification - User saved:', verifyUser ? 'YES' : 'NO')
-    
     setUser(userData)
-    console.log('[AUTH DEBUG] User state updated')
   }
 
   const logout = () => {
-    console.log('[AUTH DEBUG] logout() called')
-    localStorage.removeItem('token')
+    console.log('[AUTH] Logout')
     localStorage.removeItem('user')
     setUser(null)
     router.push('/login')
   }
 
+  // Generate auth header for API requests
+  const getAuthHeader = () => {
+    if (!user) return {}
+    const sessionData = Buffer.from(JSON.stringify(user)).toString('base64')
+    return {
+      'Authorization': `Session ${sessionData}`
+    }
+  }
+
+  if (isLoading) {
+    return null // or loading spinner
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, getAuthHeader }}>
       {children}
     </AuthContext.Provider>
   )

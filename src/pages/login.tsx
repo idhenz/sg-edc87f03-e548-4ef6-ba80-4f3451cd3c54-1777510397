@@ -19,44 +19,23 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
-    console.log('[LOGIN DEBUG] Attempting login with username:', username)
-    console.log('[LOGIN DEBUG] Password length:', password.length)
-
-    const loginData = {
-      username: username,
-      password: password
-    }
-    console.log('[LOGIN DEBUG] Sending login data:', { username: loginData.username, password: '***' })
-
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData)
+        body: JSON.stringify({ username, password })
       })
 
-      console.log('[LOGIN DEBUG] Login response status:', res.status)
       const data = await res.json()
-      console.log('[LOGIN DEBUG] Login response data:', { ...data, token: data.token ? 'EXISTS' : 'NULL' })
 
-      if (res.ok && data.token) {
-        console.log('[LOGIN DEBUG] Login successful, calling login() from AuthContext')
-        login(data.token, data.user)
-        
-        // Verify token is saved
-        const savedToken = localStorage.getItem('token')
-        console.log('[LOGIN DEBUG] Token saved to localStorage:', savedToken ? 'YES' : 'NO')
-        console.log('[LOGIN DEBUG] Token length:', savedToken?.length || 0)
-        
+      if (res.ok && data.success) {
+        login(data.user)
         toast({
           title: 'Login Berhasil',
           description: `Selamat datang, ${data.user.username}`
         })
-        
-        console.log('[LOGIN DEBUG] Redirecting to dashboard...')
         router.push('/dashboard')
       } else {
-        console.log('[LOGIN DEBUG] Login failed:', data.message)
         toast({
           title: 'Login Gagal',
           description: data.message || 'Username atau password salah',
@@ -64,10 +43,10 @@ export default function LoginPage() {
         })
       }
     } catch (error) {
-      console.error('[LOGIN DEBUG] Login exception:', error)
+      console.error('[LOGIN] Error:', error)
       toast({
         title: 'Error',
-        description: 'Terjadi kesalahan saat login',
+        description: 'Terjadi kesalahan jaringan',
         variant: 'destructive'
       })
     } finally {
@@ -88,7 +67,6 @@ export default function LoginPage() {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                name="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -100,7 +78,6 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
-                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
