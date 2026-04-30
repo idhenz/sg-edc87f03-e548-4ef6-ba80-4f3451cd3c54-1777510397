@@ -1,12 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { RouterOSAPI } from 'node-routeros';
 import { query } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { getUserFromToken } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const user = verifyToken(req, res);
-    if (!user) return;
+    const user = getUserFromToken(req);
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
     if (req.method !== 'POST') {
       return res.status(405).json({ message: 'Method not allowed' });
