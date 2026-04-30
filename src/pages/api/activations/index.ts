@@ -82,17 +82,22 @@ export default async function handler(
           proratedAmount
         })
 
-        // 4. Generate Invoice for MRC (Prorated)
+        // 4. Calculate dates
+        const currentDate = new Date().toISOString().slice(0, 10) // created_at
+        const dueDateObj = new Date()
+        dueDateObj.setDate(dueDateObj.getDate() + 14) // H+14 dari hari ini
+        const dueDate = dueDateObj.toISOString().slice(0, 10)
+
+        // 5. Generate Invoice for MRC (Prorated)
         const invoiceNumberMRC = `INV-MRC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
-        const currentDate = new Date().toISOString().slice(0, 10)
         
         console.log('Creating MRC Invoice:', {
           invoiceNumber: invoiceNumberMRC,
           customerName: customerData.name,
           packageName: `${productData.name} - MRC Bulan Pertama (Prorata)`,
-          dueDate: activation_date,
-          amount: proratedAmount,
-          createdAt: currentDate
+          createdAt: currentDate,
+          dueDate: dueDate,
+          amount: proratedAmount
         })
 
         await connection.execute(
@@ -103,7 +108,7 @@ export default async function handler(
             invoiceNumberMRC,
             customerData.name,
             `${productData.name} - MRC Bulan Pertama (Prorata)`,
-            activation_date,
+            dueDate,
             proratedAmount,
             currentDate
           ]
@@ -111,7 +116,7 @@ export default async function handler(
 
         console.log('✅ MRC Invoice created successfully')
 
-        // 5. Generate Invoice for OTC if amount > 0
+        // 6. Generate Invoice for OTC if amount > 0
         let invoiceNumberOTC = null
         if (otc_amount && parseFloat(otc_amount.toString()) > 0) {
           invoiceNumberOTC = `INV-OTC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
@@ -120,9 +125,9 @@ export default async function handler(
             invoiceNumber: invoiceNumberOTC,
             customerName: customerData.name,
             packageName: `${productData.name} - Biaya Instalasi`,
-            dueDate: activation_date,
-            amount: otc_amount,
-            createdAt: currentDate
+            createdAt: currentDate,
+            dueDate: dueDate,
+            amount: otc_amount
           })
 
           await connection.execute(
@@ -133,7 +138,7 @@ export default async function handler(
               invoiceNumberOTC,
               customerData.name,
               `${productData.name} - Biaya Instalasi`,
-              activation_date,
+              dueDate,
               otc_amount,
               currentDate
             ]
@@ -142,7 +147,7 @@ export default async function handler(
           console.log('✅ OTC Invoice created successfully')
         }
 
-        // 6. Update customer status to active
+        // 7. Update customer status to active
         await connection.execute(
           'UPDATE customers SET status = ? WHERE id = ?',
           ['active', customer_id]
