@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, FileText, CheckCircle, TrendingUp, TrendingDown, Activity, ExternalLink } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, CheckCircle, TrendingUp, TrendingDown, Activity, ExternalLink, Printer } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -617,6 +617,14 @@ export default function InvoicesOutgoingPage() {
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(`/invoices/print/${invoice.id}`, '_blank')}
+                                title="Print / Export PDF"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"

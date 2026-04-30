@@ -10,7 +10,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET') {
-      const { month, year } = req.query
+      const { month, year, id } = req.query
+      
+      if (id) {
+        const invoices = await query('SELECT * FROM invoices_outgoing WHERE id = ?', [id])
+        return res.status(200).json({ invoice: invoices[0] })
+      }
       
       let queryStr = 'SELECT * FROM invoices_outgoing'
       const params: any[] = []
