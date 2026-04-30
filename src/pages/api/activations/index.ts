@@ -104,127 +104,96 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // AUTO-GENERATE INVOICES (hanya untuk aktivasi baru)
-      if (action_type === 'activation' && product_id) {
-        try {
-          // Ambil data customer dan product
-          const customers = await query(
-            'SELECT name FROM customers WHERE id = ?',
-            [customer_id]
+      if (action_type === 'activation') {
+        // 1. Get customer data
+        const [customerRows] = await connection.execute(
+          'SELECT * FROM customers WHERE id = ?',
+          [customer_id]
+        )
+        const customerData = (customerRows as any[])[0]
+
+        // 2. Get product data
+        const [productRows] = await connection.execute(
+          'SELECT * FROM products WHERE id = ?',
+          [product_id]
+        )
+        const productData = (productRows as any[])[0]
+
+        // 3. Calculate prorated MRC
+        const activationDay = new Date(activation_date).getDate()
+        const daysInMonth = new Date(
+          new Date(activation_date).getFullYear(),
+          new Date(activation_date).getMonth() + 1,
+          0
+        ).getDate()
+        const remainingDays = daysInMonth - activationDay + 1
+        const proratedAmount = (productData.price / daysInMonth) * remainingDays
+
+        console.log('Prorated calculation:', {
+          activationDay,
+          daysInMonth,
+          remainingDays,
+          monthlyPrice: productData.price,
+          proratedAmount
+        })
+
+        // 4. Generate Invoice for MRC (Prorated)
+        const invoiceNumberMRC = `INV-MRC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
+        const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' ')
+        
+        console.log('Creating MRC Invoice:', {
+          invoiceNumber: invoiceNumberMRC,
+          customerId: customer_id,
+          customerName: customerData.name,
+          packageName: `${productData.name} - MRC Bulan Pertama (Prorata)`,
+          dueDate: activation_date,
+          amount: proratedAmount,
+          createdAt: currentDate
+        })
+
+        await connection.execute(
+          `INSERT INTO invoices_outgoing 
+           (invoice_number, customer_id, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
+           VALUES (?, ?, ?, ?, ?, ?, 'pending', 'MRC', ?)`,
+          [
+            invoiceNumberMRC,
+            customer_id,
+            customerData.name,
+            `${productData.name} - MRC Bulan Pertama (Prorata)`,
+            activation_date,
+            proratedAmount,
+            currentDate
+          ]
+        )
+
+        // 5. Generate Invoice for OTC if amount > 0
+        if (otc_amount && parseFloat(otc_amount.toString()) > 0) {
+          const invoiceNumberOTC = `INV-OTC-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`
+          
+          console.log('Creating OTC Invoice:', {
+            invoiceNumber: invoiceNumberOTC,
+            customerId: customer_id,
+            customerName: customerData.name,
+            packageName: `${productData.name} - Biaya Instalasi`,
+            dueDate: activation_date,
+            amount: otc_amount,
+            createdAt: currentDate
+          })
+
+          await connection.execute(
+            `INSERT INTO invoices_outgoing 
+             (invoice_number, customer_id, customer_name, package_name, due_date, amount, status, invoice_type, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, 'pending', 'OTC', ?)`,
+            [
+              invoiceNumberOTC,
+              customer_id,
+              customerData.name,
+              `${productData.name} - Biaya Instalasi`,
+              activation_date,
+              otc_amount,
+              currentDate
+            ]
           )
-          const products = await query(
-            'SELECT name, price FROM products WHERE id = ?',
-            [product_id]
-          )
-
-          console.log('Customer data:', customers)
-          console.log('Product data:', products)
-
-          if (customers.length > 0 && products.length > 0) {
-            const customer = customers[0]
-            const product = products[0]
-
-            // 1. Generate Invoice OTC (One Time Charge)
-            if (otc_amount && otc_amount > 0) {
-              const otcInvoiceNumber = generateInvoiceNumber('OTC')
-              const otcDueDate = new Date(activation_date)
-              otcDueDate.setDate(otcDueDate.getDate() + 7)
-
-              console.log('Creating OTC Invoice:', {
-                invoice_number: otcInvoiceNumber,
-                customer_name: customer.name,
-                amount: otc_amount,
-                due_date: otcDueDate.toISOString().split('T')[0]
-              })
-
-              // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
-              try {
-                await query(
-                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  [
-                    otcInvoiceNumber,
-                    customer.name,
-                    `${product.name} - Biaya Registrasi`,
-                    otcDueDate.toISOString().split('T')[0],
-                    otc_amount,
-                    'pending',
-                    'OTC'
-                  ]
-                )
-                console.log('OTC Invoice created successfully')
-              } catch (invoiceError: any) {
-                console.error('Error creating OTC invoice with invoice_type:', invoiceError.message)
-                // Fallback: insert tanpa kolom invoice_type
-                await query(
-                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
-                  [
-                    otcInvoiceNumber,
-                    customer.name,
-                    `${product.name} - Biaya Registrasi (OTC)`,
-                    otcDueDate.toISOString().split('T')[0],
-                    otc_amount,
-                    'pending'
-                  ]
-                )
-                console.log('OTC Invoice created (without invoice_type column)')
-              }
-            }
-
-            // 2. Generate Invoice MRC (Monthly Recurring Charge) - Prorata
-            const mrcInvoiceNumber = generateInvoiceNumber('MRC')
-            const prorata = calculateProratedMRC(activation_date, product.price)
-            
-            const activationDateObj = new Date(activation_date)
-            const year = activationDateObj.getFullYear()
-            const month = activationDateObj.getMonth()
-            const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
-            const mrcDueDate = new Date(year, month, lastDayOfMonth)
-
-            console.log('Creating MRC Invoice:', {
-              invoice_number: mrcInvoiceNumber,
-              customer_name: customer.name,
-              amount: prorata.proratedAmount,
-              due_date: mrcDueDate.toISOString().split('T')[0],
-              prorata: prorata
-            })
-
-            // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
-            try {
-              await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
-                [
-                  mrcInvoiceNumber,
-                  customer.name,
-                  `${product.name} - MRC Bulan Pertama (Prorata)`,
-                  mrcDueDate.toISOString().split('T')[0],
-                  prorata.proratedAmount,
-                  'pending',
-                  'MRC'
-                ]
-              )
-              console.log('MRC Invoice created successfully')
-            } catch (invoiceError: any) {
-              console.error('Error creating MRC invoice with invoice_type:', invoiceError.message)
-              // Fallback: insert tanpa kolom invoice_type
-              await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
-                [
-                  mrcInvoiceNumber,
-                  customer.name,
-                  `${product.name} - MRC Bulan Pertama (Prorata)`,
-                  mrcDueDate.toISOString().split('T')[0],
-                  prorata.proratedAmount,
-                  'pending'
-                ]
-              )
-              console.log('MRC Invoice created (without invoice_type column)')
-            }
-          } else {
-            console.warn('Customer or product not found for invoice generation')
-          }
-        } catch (invoiceError: any) {
-          console.error('Error generating invoices:', invoiceError.message)
-          // Jangan throw error, invoice generation adalah optional
-          console.log('Continuing without invoice generation')
         }
       }
 
