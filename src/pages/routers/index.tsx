@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Loader2, Zap } from 'lucide-react'
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Loader2, Zap, RefreshCw } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 interface Router {
@@ -65,6 +65,7 @@ export default function RoutersPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [syncingRouter, setSyncingRouter] = useState<number | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -120,6 +121,41 @@ export default function RoutersPage() {
       toast({ title: 'Error', description: 'Gagal test koneksi', variant: 'destructive' })
     } finally {
       setTesting(false)
+    }
+  }
+
+  const handleSyncPPPoE = async (routerId: number, routerName: string) => {
+    setSyncingRouter(routerId)
+    try {
+      const res = await fetch('/api/pppoe/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify({ router_id: routerId })
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: 'Sinkronisasi Berhasil',
+          description: `${routerName}: ${data.synced} akun tersinkronisasi (${data.updated} diperbarui dari total ${data.total})`
+        })
+        fetchRouters()
+      } else {
+        toast({
+          title: 'Sinkronisasi Gagal',
+          description: data.message || 'Gagal menarik data dari router',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat sinkronisasi',
+        variant: 'destructive'
+      })
+    } finally {
+      setSyncingRouter(null)
     }
   }
 
@@ -257,12 +293,27 @@ export default function RoutersPage() {
                         </TableCell>
                         <TableCell>{formatDate(router.last_sync)}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(router)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setSelectedRouter(router); setDeleteDialogOpen(true); }}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleSyncPPPoE(router.id, router.name)}
+                              disabled={syncingRouter === router.id || !router.is_active}
+                              title="Sync PPPoE"
+                            >
+                              {syncingRouter === router.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(router)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => { setSelectedRouter(router); setDeleteDialogOpen(true); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
