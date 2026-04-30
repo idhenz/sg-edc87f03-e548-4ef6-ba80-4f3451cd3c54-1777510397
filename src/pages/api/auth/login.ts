@@ -24,7 +24,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Check database connection
     if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_NAME) {
-      console.error('Missing database configuration')
+      console.error('Missing database configuration:', {
+        hasHost: !!process.env.DB_HOST,
+        hasUser: !!process.env.DB_USER,
+        hasDB: !!process.env.DB_NAME
+      })
       return res.status(500).json({ message: 'Database configuration error. Please check environment variables.' })
     }
 
@@ -50,12 +54,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: user.role,
     }
 
-    // Set cookie with production-ready settings
+    // Production-ready cookie settings
+    const isProduction = process.env.NODE_ENV === 'production'
+    
     res.setHeader('Set-Cookie', cookie.serialize('session', JSON.stringify(sessionData), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: isProduction ? 'lax' : 'lax',
       path: '/',
     }))
 
