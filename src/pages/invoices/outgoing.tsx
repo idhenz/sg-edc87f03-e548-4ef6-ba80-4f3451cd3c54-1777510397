@@ -1129,51 +1129,51 @@ export default function InvoicesOutgoingPage() {
 
         {/* PDF Preview Modal */}
         <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
-          <DialogContent className="max-w-5xl max-h-[90vh] p-0">
-            <div className="flex flex-col h-[90vh]">
-              <div className="flex justify-between items-center p-4 border-b">
-                <DialogTitle>
-                  Preview Invoice {selectedPdfInvoice?.invoice_number}
-                </DialogTitle>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Preview Invoice PDF</span>
                 <div className="flex gap-2">
-                  {!isGeneratingPdf && pdfBlob && (
-                    <>
-                      <Button variant="outline" size="sm" onClick={downloadPDF}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={printPDF}>
-                        <Printer className="h-4 w-4 mr-2" />
-                        Print
-                      </Button>
-                    </>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => setShowPdfModal(false)}>
-                    <X className="h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadPDF}
+                    disabled={!pdfBlob}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={printPDF}
+                    disabled={!pdfBlob}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print
                   </Button>
                 </div>
-              </div>
-              
-              <div className="flex-1 overflow-hidden bg-gray-100">
-                {isGeneratingPdf ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center space-y-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground">Membuat PDF...</p>
-                    </div>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden bg-gray-100">
+              {isGeneratingPdf ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground">Membuat PDF...</p>
                   </div>
-                ) : pdfBlob ? (
-                  <iframe
-                    src={pdfBlob}
-                    className="w-full h-full border-0"
-                    title="PDF Preview"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">Gagal memuat PDF</p>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : pdfBlob ? (
+                <iframe
+                  src={pdfBlob}
+                  className="w-full h-full border-0"
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Gagal memuat PDF</p>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
