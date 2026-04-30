@@ -48,8 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const fileBuffer = fs.readFileSync(proofFile.filepath)
       const fileName = `payment-proof/${Date.now()}-${proofFile.originalFilename}`
       
-      const uploadResult = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream')
-      proofUrl = uploadResult.url
+      proofUrl = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream')
     }
 
     // Insert payment confirmation - explicitly convert all optional values to null
