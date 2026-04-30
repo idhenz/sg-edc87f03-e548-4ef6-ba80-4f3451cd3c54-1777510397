@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
   { label: 'Surat Masuk', href: '/mails/incoming', icon: Mail, adminOnly: true },
   { label: 'Surat Keluar', href: '/mails/outgoing', icon: Mail, adminOnly: true },
   { label: 'Router', href: '/routers', icon: Router, adminOnly: true },
+  { label: 'PPPoE Secrets', href: '/pppoe', icon: Wifi, adminOnly: true },
   { label: 'Pengaturan', href: '/settings', icon: Settings, adminOnly: true },
 ]
 

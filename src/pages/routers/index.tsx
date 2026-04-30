@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Pencil, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, CheckCircle, XCircle, Loader2, Zap } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface Router {
@@ -40,6 +40,7 @@ export default function RoutersPage() {
     is_active: true
   })
   const [submitting, setSubmitting] = useState(false)
+  const [testing, setTesting] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -87,6 +88,54 @@ export default function RoutersPage() {
       })
     }
     setDialogOpen(true)
+  }
+
+  const handleTestConnection = async () => {
+    if (!formData.ip_address || !formData.username || !formData.password) {
+      toast({
+        title: 'Error',
+        description: 'Lengkapi IP Address, Username, dan Password terlebih dahulu',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    setTesting(true)
+    try {
+      const res = await fetch('/api/routers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ip_address: formData.ip_address,
+          api_port: formData.api_port,
+          username: formData.username,
+          password: formData.password
+        })
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast({
+          title: 'Koneksi Berhasil',
+          description: `Terhubung ke router: ${data.identity}`
+        })
+      } else {
+        toast({
+          title: 'Koneksi Gagal',
+          description: data.message || 'Tidak dapat terhubung ke router',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat testing koneksi',
+        variant: 'destructive'
+      })
+    } finally {
+      setTesting(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -353,6 +402,20 @@ export default function RoutersPage() {
                     onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                   />
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleTestConnection}
+                  disabled={testing}
+                  className="w-full"
+                >
+                  {testing ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  Test Koneksi
+                </Button>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
