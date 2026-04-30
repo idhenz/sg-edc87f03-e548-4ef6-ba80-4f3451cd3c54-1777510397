@@ -10,7 +10,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET') {
-      const invoices = await query('SELECT * FROM invoices_outgoing ORDER BY id DESC')
+      const { month, year } = req.query
+      
+      let queryStr = 'SELECT * FROM invoices_outgoing'
+      const params: any[] = []
+      
+      if (month && year) {
+        queryStr += ' WHERE MONTH(due_date) = ? AND YEAR(due_date) = ?'
+        params.push(parseInt(month as string), parseInt(year as string))
+      } else if (year) {
+        queryStr += ' WHERE YEAR(due_date) = ?'
+        params.push(parseInt(year as string))
+      }
+      
+      queryStr += ' ORDER BY id DESC'
+      
+      const invoices = await query(queryStr, params)
       return res.status(200).json({ invoices })
     }
 
