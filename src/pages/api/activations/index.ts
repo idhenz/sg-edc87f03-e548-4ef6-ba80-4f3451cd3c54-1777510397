@@ -139,7 +139,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
               try {
                 await query(
-                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
                   [
                     otcInvoiceNumber,
                     customer.name,
@@ -147,8 +147,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     otcDueDate.toISOString().split('T')[0],
                     otc_amount,
                     'pending',
-                    'OTC',
-                    'Biaya registrasi awal - Auto-generated'
+                    'OTC'
                   ]
                 )
                 console.log('OTC Invoice created successfully')
@@ -156,15 +155,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 console.error('Error creating OTC invoice with invoice_type:', invoiceError.message)
                 // Fallback: insert tanpa kolom invoice_type
                 await query(
-                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
                   [
                     otcInvoiceNumber,
                     customer.name,
                     `${product.name} - Biaya Registrasi (OTC)`,
                     otcDueDate.toISOString().split('T')[0],
                     otc_amount,
-                    'pending',
-                    'Biaya registrasi awal - Auto-generated'
+                    'pending'
                   ]
                 )
                 console.log('OTC Invoice created (without invoice_type column)')
@@ -192,7 +190,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Coba insert dengan invoice_type, jika gagal coba tanpa invoice_type
             try {
               await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, invoice_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [
                   mrcInvoiceNumber,
                   customer.name,
@@ -200,8 +198,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   mrcDueDate.toISOString().split('T')[0],
                   prorata.proratedAmount,
                   'pending',
-                  'MRC',
-                  `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
+                  'MRC'
                 ]
               )
               console.log('MRC Invoice created successfully')
@@ -209,15 +206,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               console.error('Error creating MRC invoice with invoice_type:', invoiceError.message)
               // Fallback: insert tanpa kolom invoice_type
               await query(
-                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO invoices_outgoing (invoice_number, customer_name, package_name, due_date, amount, status) VALUES (?, ?, ?, ?, ?, ?)',
                 [
                   mrcInvoiceNumber,
                   customer.name,
                   `${product.name} - MRC Bulan Pertama (Prorata)`,
                   mrcDueDate.toISOString().split('T')[0],
                   prorata.proratedAmount,
-                  'pending',
-                  `Prorata ${prorata.remainingDays} hari dari ${prorata.totalDays} hari @ Rp ${prorata.pricePerDay.toLocaleString('id-ID')}/hari - Auto-generated`
+                  'pending'
                 ]
               )
               console.log('MRC Invoice created (without invoice_type column)')
