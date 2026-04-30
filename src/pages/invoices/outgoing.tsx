@@ -231,12 +231,10 @@ export default function InvoicesOutgoingPage() {
 
   // Calculate statistics
   const totalInvoices = filteredInvoices.length
-  const totalPaid = filteredInvoices
-    .filter(inv => inv.status === 'paid')
-    .reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
-  const totalUnpaid = filteredInvoices
-    .filter(inv => inv.status === 'pending')
-    .reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
+  const paidInvoices = filteredInvoices.filter(inv => inv.status === 'paid')
+  const pendingInvoices = filteredInvoices.filter(inv => inv.status === 'pending')
+  const totalPaid = paidInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
+  const totalUnpaid = pendingInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
 
   const getStatusBadge = (status: string) => {
     switch (status) {
