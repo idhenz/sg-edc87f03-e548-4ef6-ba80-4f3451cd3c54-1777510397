@@ -74,7 +74,10 @@ CREATE TABLE IF NOT EXISTS invoices_outgoing (
   package_name VARCHAR(100),
   due_date DATE,
   amount DECIMAL(15, 2),
-  status VARCHAR(20) DEFAULT 'pending'
+  status VARCHAR(20) DEFAULT 'pending',
+  invoice_type VARCHAR(20) DEFAULT 'MRC' COMMENT 'OTC (One Time Charge) or MRC (Monthly Recurring Charge)',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 7. Table: Mails Incoming (Surat Masuk)
