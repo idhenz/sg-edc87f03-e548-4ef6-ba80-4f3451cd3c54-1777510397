@@ -33,14 +33,14 @@ ADD COLUMN paid_amount DECIMAL(15,2) DEFAULT 0.00 AFTER amount;
 ```
 
 ## Checklist
-- [ ] Update API `/api/payments/confirm.ts`:
+- [x] Update API `/api/payments/confirm.ts`:
   - Get current invoice amount & paid_amount
   - Calculate new paid_amount = current + new payment
   - Validate overpayment (new paid_amount > total amount)
   - Update status logic: pending → partial → paid
   - Update invoice: SET paid_amount = X, status = Y
   - Return remaining balance dan new status
-- [ ] Buat API `/api/payments/history.ts`:
+- [x] Buat API `/api/payments/history.ts`:
   - GET endpoint dengan query param invoice_id
   - JOIN payment_confirmations dengan banks dan users
   - Return array of payments dengan detail bank & admin konfirmator
