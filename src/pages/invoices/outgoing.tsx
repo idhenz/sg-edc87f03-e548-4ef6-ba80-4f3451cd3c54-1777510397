@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Plus, Pencil, Trash2, FileText, CheckCircle, TrendingUp, TrendingDown, Activity } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, FileText, CheckCircle, TrendingUp, TrendingDown, Activity, ExternalLink } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,6 +19,7 @@ interface Invoice {
   package_name: string
   due_date: string
   amount: number
+  paid_amount?: number
   status: string
   invoice_type?: string
   created_at: string
@@ -30,6 +31,20 @@ interface Bank {
   account_number: string
   account_holder: string
   branch?: string
+}
+
+interface PaymentHistory {
+  id: number
+  amount: number
+  payment_date: string
+  bank_name: string
+  account_number: string
+  account_name: string
+  transfer_from: string
+  proof_url: string
+  notes: string
+  confirmed_by_name: string
+  created_at: string
 }
 
 const getAuthHeaders = () => {
@@ -47,9 +62,12 @@ export default function InvoicesOutgoingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [currentInvoice, setCurrentInvoice] = useState<Partial<Invoice>>({})
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [proofFile, setProofFile] = useState<File | null>(null)
@@ -101,6 +119,27 @@ export default function InvoicesOutgoingPage() {
       }
     } catch (error) {
       console.error('Error fetching banks:', error)
+    }
+  }
+
+  const fetchPaymentHistory = async (invoiceId: number) => {
+    try {
+      setLoadingHistory(true)
+      const res = await fetch(`/api/payments/history?invoice_id=${invoiceId}`, {
+        headers: getAuthHeaders()
+      })
+      if (!res.ok) throw new Error('Gagal mengambil history pembayaran')
+      const data = await res.json()
+      setPaymentHistory(data.history || [])
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: 'Error',
+        description: 'Gagal mengambil riwayat pembayaran',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingHistory(false)
     }
   }
 
@@ -223,6 +262,12 @@ export default function InvoicesOutgoingPage() {
     setPaymentDialogOpen(true)
   }
 
+  const openHistoryDialog = (invoice: Invoice) => {
+    setSelectedInvoice(invoice)
+    setHistoryDialogOpen(true)
+    fetchPaymentHistory(invoice.id)
+  }
+
   const filteredInvoices = invoices.filter((inv) =>
     inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inv.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -231,10 +276,25 @@ export default function InvoicesOutgoingPage() {
 
   // Calculate statistics
   const totalInvoices = filteredInvoices.length
+  
+  const totalPaid = filteredInvoices.reduce((sum, inv) => {
+    const amount = parseFloat(inv.amount.toString())
+    const paid = inv.paid_amount !== undefined && inv.paid_amount !== null 
+      ? parseFloat(inv.paid_amount.toString()) 
+      : (inv.status === 'paid' ? amount : 0)
+    return sum + paid
+  }, 0)
+  
+  const totalUnpaid = filteredInvoices.reduce((sum, inv) => {
+    const amount = parseFloat(inv.amount.toString())
+    const paid = inv.paid_amount !== undefined && inv.paid_amount !== null 
+      ? parseFloat(inv.paid_amount.toString()) 
+      : (inv.status === 'paid' ? amount : 0)
+    return sum + (amount - paid)
+  }, 0)
+
   const paidInvoices = filteredInvoices.filter(inv => inv.status === 'paid')
-  const pendingInvoices = filteredInvoices.filter(inv => inv.status === 'pending')
-  const totalPaid = paidInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
-  const totalUnpaid = pendingInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0)
+  const pendingInvoices = filteredInvoices.filter(inv => inv.status === 'pending' || inv.status === 'partial')
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -244,6 +304,8 @@ export default function InvoicesOutgoingPage() {
         return 'secondary'
       case 'overdue':
         return 'destructive'
+      case 'partial':
+        return 'outline'
       default:
         return 'outline'
     }
@@ -253,6 +315,8 @@ export default function InvoicesOutgoingPage() {
     switch (status) {
       case 'paid':
         return 'Lunas'
+      case 'partial':
+        return 'Lunas Sebagian'
       case 'pending':
         return 'Belum Bayar'
       case 'overdue':
@@ -378,6 +442,7 @@ export default function InvoicesOutgoingPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending">Belum Bayar</SelectItem>
+                        <SelectItem value="partial">Lunas Sebagian</SelectItem>
                         <SelectItem value="paid">Lunas</SelectItem>
                         <SelectItem value="overdue">Terlambat</SelectItem>
                       </SelectContent>
@@ -434,7 +499,7 @@ export default function InvoicesOutgoingPage() {
                   Rp {totalUnpaid.toLocaleString('id-ID')}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {pendingInvoices.length} invoice pending
+                  {pendingInvoices.length} invoice memiliki sisa
                 </p>
               </CardContent>
             </Card>
@@ -523,18 +588,31 @@ export default function InvoicesOutgoingPage() {
                             Rp {invoice.amount.toLocaleString('id-ID')}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getStatusBadge(invoice.status) as any}>
+                            <Badge 
+                              variant={getStatusBadge(invoice.status) as any}
+                              className={
+                                invoice.status === 'partial' ? 'bg-orange-500 hover:bg-orange-600 text-white border-transparent cursor-pointer' : 
+                                invoice.status === 'paid' ? 'bg-green-600 hover:bg-green-700 cursor-pointer' : ''
+                              }
+                              title={invoice.status === 'paid' || invoice.status === 'partial' ? 'Klik untuk melihat riwayat pembayaran' : ''}
+                              onClick={() => {
+                                if (invoice.status === 'paid' || invoice.status === 'partial') {
+                                  openHistoryDialog(invoice)
+                                }
+                              }}
+                            >
                               {getStatusLabel(invoice.status)}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              {invoice.status === 'pending' && (
+                              {(invoice.status === 'pending' || invoice.status === 'partial') && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openPaymentDialog(invoice)}
                                   className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  title="Konfirmasi Pembayaran"
                                 >
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
@@ -584,7 +662,22 @@ export default function InvoicesOutgoingPage() {
                   <div className="text-sm space-y-1">
                     <p>No. Invoice: <span className="font-mono">{selectedInvoice.invoice_number}</span></p>
                     <p>Pelanggan: <span className="font-medium">{selectedInvoice.customer_name}</span></p>
-                    <p>Jumlah: <span className="font-bold">Rp {selectedInvoice.amount.toLocaleString('id-ID')}</span></p>
+                    <p>Total Tagihan: <span className="font-bold">Rp {selectedInvoice.amount.toLocaleString('id-ID')}</span></p>
+                    
+                    {(() => {
+                      const amount = parseFloat(selectedInvoice.amount.toString())
+                      const paid = selectedInvoice.paid_amount !== undefined && selectedInvoice.paid_amount !== null 
+                        ? parseFloat(selectedInvoice.paid_amount.toString()) 
+                        : (selectedInvoice.status === 'paid' ? amount : 0)
+                      const remaining = amount - paid
+                      
+                      return paid > 0 ? (
+                        <>
+                          <p>Sudah Dibayar: <span className="text-green-600 font-medium">Rp {paid.toLocaleString('id-ID')}</span></p>
+                          <p>Sisa Tagihan: <span className="text-orange-600 font-bold">Rp {remaining.toLocaleString('id-ID')}</span></p>
+                        </>
+                      ) : null
+                    })()}
                   </div>
                 </div>
 
@@ -610,9 +703,23 @@ export default function InvoicesOutgoingPage() {
                     id="amount"
                     name="amount"
                     type="number"
-                    defaultValue={selectedInvoice.amount}
+                    defaultValue={(() => {
+                      const amount = parseFloat(selectedInvoice.amount.toString())
+                      const paid = selectedInvoice.paid_amount !== undefined && selectedInvoice.paid_amount !== null 
+                        ? parseFloat(selectedInvoice.paid_amount.toString()) 
+                        : (selectedInvoice.status === 'paid' ? amount : 0)
+                      return amount - paid
+                    })()}
+                    max={(() => {
+                      const amount = parseFloat(selectedInvoice.amount.toString())
+                      const paid = selectedInvoice.paid_amount !== undefined && selectedInvoice.paid_amount !== null 
+                        ? parseFloat(selectedInvoice.paid_amount.toString()) 
+                        : (selectedInvoice.status === 'paid' ? amount : 0)
+                      return amount - paid
+                    })()}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">Pembayaran tidak boleh melebihi sisa tagihan</p>
                 </div>
 
                 <div className="space-y-2">
@@ -672,6 +779,143 @@ export default function InvoicesOutgoingPage() {
                   </Button>
                 </div>
               </form>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment History Dialog */}
+        <Dialog open={historyDialogOpen} onOpenChange={(open) => {
+          setHistoryDialogOpen(open)
+          if (!open) {
+            setSelectedInvoice(null)
+            setPaymentHistory([])
+          }
+        }}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Detail Pembayaran Invoice</DialogTitle>
+            </DialogHeader>
+            {selectedInvoice && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between gap-4 p-4 bg-muted/50 rounded-lg border">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Nomor Invoice</p>
+                    <p className="font-mono font-medium">{selectedInvoice.invoice_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Pelanggan</p>
+                    <p className="font-medium">{selectedInvoice.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Total Tagihan</p>
+                    <p className="font-bold">Rp {selectedInvoice.amount.toLocaleString('id-ID')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Status</p>
+                    <Badge 
+                      variant={getStatusBadge(selectedInvoice.status) as any}
+                      className={
+                        selectedInvoice.status === 'partial' ? 'bg-orange-500 hover:bg-orange-600 text-white border-transparent' : 
+                        selectedInvoice.status === 'paid' ? 'bg-green-600 hover:bg-green-700' : ''
+                      }
+                    >
+                      {getStatusLabel(selectedInvoice.status)}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium mb-3">Riwayat Transaksi</h3>
+                  {loadingHistory ? (
+                    <div className="text-center py-8 text-muted-foreground">Memuat data pembayaran...</div>
+                  ) : paymentHistory.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                      Belum ada riwayat pembayaran
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {paymentHistory.map((payment, index) => (
+                        <div key={payment.id} className="border rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-4 py-3 border-b flex flex-wrap justify-between items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">Pembayaran #{paymentHistory.length - index}</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(payment.payment_date).toLocaleDateString('id-ID', {
+                                  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                            <div className="font-bold text-green-600">
+                              + Rp {parseFloat(payment.amount.toString()).toLocaleString('id-ID')}
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 grid gap-4 md:grid-cols-2">
+                            <div className="space-y-3 text-sm">
+                              <div>
+                                <span className="text-muted-foreground block mb-1">Bank Tujuan:</span>
+                                <span className="font-medium">{payment.bank_name} - {payment.account_number}</span>
+                                <span className="block text-muted-foreground text-xs">{payment.account_name}</span>
+                              </div>
+                              {payment.transfer_from && (
+                                <div>
+                                  <span className="text-muted-foreground block mb-1">Pengirim:</span>
+                                  <span className="font-medium">{payment.transfer_from}</span>
+                                </div>
+                              )}
+                              {payment.notes && (
+                                <div>
+                                  <span className="text-muted-foreground block mb-1">Catatan:</span>
+                                  <span className="italic">"{payment.notes}"</span>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-muted-foreground block mb-1">Dikonfirmasi oleh:</span>
+                                <span>{payment.confirmed_by_name} pada {new Date(payment.created_at).toLocaleString('id-ID')}</span>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <span className="text-muted-foreground text-sm block mb-2">Bukti Transfer:</span>
+                              {payment.proof_url ? (
+                                <a 
+                                  href={payment.proof_url} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="block rounded-lg border border-border overflow-hidden hover:border-primary transition-colors group relative"
+                                >
+                                  {payment.proof_url.toLowerCase().endsWith('.pdf') ? (
+                                    <div className="h-32 bg-muted flex flex-col items-center justify-center text-muted-foreground group-hover:text-primary">
+                                      <FileText className="h-8 w-8 mb-2" />
+                                      <span className="text-sm font-medium">Lihat Dokumen PDF</span>
+                                    </div>
+                                  ) : (
+                                    <div className="relative h-40 w-full bg-muted">
+                                      {/* Using img tag because proof_url can be external Biznet GIO url */}
+                                      <img 
+                                        src={payment.proof_url} 
+                                        alt="Bukti Transfer" 
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <ExternalLink className="h-6 w-6 text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </a>
+                              ) : (
+                                <div className="h-32 rounded-lg border border-dashed flex items-center justify-center text-muted-foreground text-sm bg-muted/20">
+                                  Tidak ada lampiran
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </DialogContent>
         </Dialog>

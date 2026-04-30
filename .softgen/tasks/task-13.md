@@ -44,7 +44,7 @@ ADD COLUMN paid_amount DECIMAL(15,2) DEFAULT 0.00 AFTER amount;
   - GET endpoint dengan query param invoice_id
   - JOIN payment_confirmations dengan banks dan users
   - Return array of payments dengan detail bank & admin konfirmator
-- [ ] Update halaman `/invoices/outgoing.tsx`:
+- [x] Update halaman `/invoices/outgoing.tsx`:
   - Update Badge component untuk support 3 status (pending=gray, partial=orange, paid=green)
   - Tambahkan onClick handler di badge status "Lunas" dan "Lunas Sebagian"
   - Buat Dialog "Detail Pembayaran":
@@ -55,7 +55,7 @@ ADD COLUMN paid_amount DECIMAL(15,2) DEFAULT 0.00 AFTER amount;
   - Update Dialog Konfirmasi Pembayaran:
     - Show remaining balance di atas form
     - Validate input nominal tidak melebihi sisa tagihan
-- [ ] Update statistics calculation:
+- [x] Update statistics calculation:
   - Total Terbayar = sum(paid_amount) untuk semua invoice
   - Total Belum Bayar = sum(amount - paid_amount) untuk invoice pending + partial
 - [ ] Test partial payment flow:
