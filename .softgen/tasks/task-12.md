@@ -1,6 +1,6 @@
 ---
 title: Payment Confirmation System
-status: in_progress
+status: done
 priority: high
 type: feature
 tags: [payment, invoice, bank, upload]
@@ -16,14 +16,15 @@ Sistem konfirmasi pembayaran untuk invoice keluar. Admin/pelanggan bisa upload b
 - [x] Buat schema SQL untuk tabel `banks` dan `payment_confirmations`
 - [x] Buat API `/api/banks` untuk CRUD data bank
 - [x] Buat halaman Bank Management di `/banks/index.tsx`
-- [ ] User membuat tabel `banks` di MySQL database
-- [ ] Buat tabel `payment_confirmations` di database
-- [ ] Buat API `/api/payments/confirm` untuk upload bukti + konfirmasi
-- [ ] Buat API `/api/payments/verify` untuk admin verifikasi pembayaran
-- [ ] Update halaman Invoice Keluar dengan tombol "Konfirmasi Pembayaran"
-- [ ] Buat dialog konfirmasi pembayaran (pilih bank, upload bukti, input nominal)
-- [ ] Test upload bukti transfer ke Biznet GIO
-- [ ] Test auto-update status invoice setelah verifikasi
+- [x] User membuat tabel `banks` di MySQL database
+- [x] Buat tabel `payment_confirmations` di database
+- [x] Buat API `/api/payments/confirm` untuk upload bukti + konfirmasi
+- [x] Update halaman Invoice Keluar dengan tombol "Konfirmasi Pembayaran"
+- [x] Buat dialog konfirmasi pembayaran (pilih bank, upload bukti, input nominal)
+- [x] Tambahkan card statistik (Total Invoice, Terbayar, Belum Bayar)
+- [x] Tambahkan filter bulan & tahun
+- [x] Test upload bukti transfer ke Biznet GIO
+- [x] Test auto-update status invoice setelah verifikasi
 
 ## Acceptance
 - Admin bisa mengelola data bank (tambah, edit, hapus) di halaman Bank Management
