@@ -24,6 +24,7 @@ interface Invoice {
   paid_amount?: string
   status: string
   invoice_type: string
+  created_at?: string
 }
 
 interface PaymentHistory {
@@ -342,6 +343,7 @@ export default function InvoicesOutgoingPage() {
               <div style="text-align: right;">
                 <h2 style="margin: 0; font-size: 32px; color: #1e40af; font-weight: bold;">INVOICE</h2>
                 <p style="margin: 5px 0; font-size: 14px;"><strong>No:</strong> ${invoice.invoice_number}</p>
+                <p style="margin: 5px 0; font-size: 14px;"><strong>Tanggal:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID') : '-'}</p>
                 <p style="margin: 5px 0; font-size: 14px;"><strong>Tgl Jatuh Tempo:</strong> ${new Date(invoice.due_date).toLocaleDateString('id-ID')}</p>
               </div>
             </div>
@@ -658,6 +660,7 @@ export default function InvoicesOutgoingPage() {
                     <TableHead>No Invoice</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Paket</TableHead>
+                    <TableHead>Tanggal Invoice</TableHead>
                     <TableHead>Tgl Jatuh Tempo</TableHead>
                     <TableHead>Jenis</TableHead>
                     <TableHead className="text-right">Total</TableHead>
@@ -679,6 +682,7 @@ export default function InvoicesOutgoingPage() {
                         <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                         <TableCell>{invoice.customer_name}</TableCell>
                         <TableCell>{invoice.package_name}</TableCell>
+                        <TableCell>{invoice.created_at ? new Date(invoice.created_at).toLocaleDateString('id-ID') : '-'}</TableCell>
                         <TableCell>{new Date(invoice.due_date).toLocaleDateString('id-ID')}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{invoice.invoice_type}</Badge>
