@@ -225,32 +225,30 @@ export default function InvoicePrintPage() {
               <div className="w-72 space-y-3">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
-                  <span>Rp {amount.toLocaleString('id-ID')}</span>
+                  <span className="font-mono">Rp {amount.toLocaleString('id-ID')}</span>
                 </div>
                 
                 <div className="flex justify-between text-slate-600">
-                  <span>Tax</span>
-                  <span>Rp {tax.toLocaleString('id-ID')}</span>
+                  <span>Tax ({settings?.tax_percentage || 0}%)</span>
+                  <span className="font-mono">Rp {tax.toLocaleString('id-ID')}</span>
                 </div>
 
-                <div className="flex justify-between text-lg font-bold text-slate-900 border-t-2 pt-3">
-                  <span>Total</span>
-                  <span>Rp {totalAmount.toLocaleString('id-ID')}</span>
+                <div className="flex justify-between text-lg font-bold text-slate-900 border-t-2 border-slate-300 pt-3">
+                  <span>Total Tagihan</span>
+                  <span className="font-mono">Rp {totalAmount.toLocaleString('id-ID')}</span>
                 </div>
                 
                 {paid > 0 && (
-                  <div className="flex justify-end gap-2 text-sm">
-                    <div className="flex justify-between w-full text-green-600 font-medium">
-                      <span>Telah Dibayar</span>
-                      <span>- Rp {paid.toLocaleString('id-ID')}</span>
-                    </div>
+                  <div className="flex justify-between text-sm text-green-600 font-medium">
+                    <span>Telah Dibayar</span>
+                    <span className="font-mono">- Rp {paid.toLocaleString('id-ID')}</span>
                   </div>
                 )}
 
                 {paid > 0 && remaining > 0 && (
-                  <div className="flex justify-between text-lg font-bold text-orange-600 border-t pt-3">
+                  <div className="flex justify-between text-lg font-bold text-orange-600 border-t border-slate-200 pt-3">
                     <span>Sisa Tagihan</span>
-                    <span>Rp {remaining.toLocaleString('id-ID')}</span>
+                    <span className="font-mono">Rp {remaining.toLocaleString('id-ID')}</span>
                   </div>
                 )}
               </div>
