@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
-import { getAuthUser } from '@/lib/auth'
+import { getUserFromRequest } from '@/lib/auth'
 import { deleteFile } from '@/lib/biznetStorage'
 
 interface Customer {
@@ -167,7 +167,7 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse, user: any) {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     // Verify authentication
-    const user = getAuthUser(req)
+    const user = getUserFromRequest(req)
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
