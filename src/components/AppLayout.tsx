@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   Building2,
-  Landmark
+  Landmark,
+  Router
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { label: 'Bank', href: '/banks', icon: Landmark, adminOnly: true },
   { label: 'Surat Masuk', href: '/mails/incoming', icon: Mail, adminOnly: true },
   { label: 'Surat Keluar', href: '/mails/outgoing', icon: Mail, adminOnly: true },
+  { label: 'Router', href: '/routers', icon: Router, adminOnly: true },
   { label: 'Pengaturan', href: '/settings', icon: Settings, adminOnly: true },
 ]
 
