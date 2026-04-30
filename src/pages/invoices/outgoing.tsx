@@ -60,7 +60,7 @@ export default function InvoicesOutgoingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   
   // Payment confirmation states
@@ -119,8 +119,8 @@ export default function InvoicesOutgoingPage() {
       let url = '/api/invoices/outgoing'
       const params = new URLSearchParams()
       
-      if (selectedMonth) params.append('month', selectedMonth)
-      if (selectedYear) params.append('year', selectedYear)
+      if (selectedMonth && selectedMonth !== 'all') params.append('month', selectedMonth)
+      if (selectedYear && selectedYear !== 'all') params.append('year', selectedYear)
       
       if (params.toString()) url += `?${params.toString()}`
       
@@ -608,7 +608,7 @@ export default function InvoicesOutgoingPage() {
                     <SelectValue placeholder="Semua Bulan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Semua Bulan</SelectItem>
+                    <SelectItem value="all">Semua Bulan</SelectItem>
                     {Array.from({ length: 12 }, (_, i) => (
                       <SelectItem key={i + 1} value={(i + 1).toString()}>
                         {new Date(2024, i, 1).toLocaleString('id-ID', { month: 'long' })}
@@ -635,7 +635,7 @@ export default function InvoicesOutgoingPage() {
                   variant="outline" 
                   onClick={() => {
                     setSearchTerm('')
-                    setSelectedMonth('')
+                    setSelectedMonth('all')
                     setSelectedYear(new Date().getFullYear().toString())
                   }}
                 >
