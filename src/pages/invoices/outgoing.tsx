@@ -141,7 +141,10 @@ export default function InvoicesOutgoingPage() {
     try {
       const res = await fetch('/api/banks')
       const data = await res.json()
-      setBanks(data.filter((b: Bank) => b.is_active))
+      
+      // Handle both direct array or { banks: [] } object format
+      const banksList = Array.isArray(data) ? data : (data.banks || [])
+      setBanks(banksList.filter((b: Bank) => b.is_active))
     } catch (error) {
       console.error('Error fetching banks:', error)
     }
