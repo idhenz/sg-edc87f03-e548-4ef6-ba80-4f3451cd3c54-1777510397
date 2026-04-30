@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       proofUrl = uploadResult.url
     }
 
-    // Insert payment confirmation - use null for optional fields
+    // Insert payment confirmation - explicitly convert all optional values to null
     await query(
       `INSERT INTO payment_confirmations 
        (invoice_id, bank_id, amount, payment_date, transfer_from, proof_url, notes, confirmed_by, status) 
@@ -62,9 +62,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         bank_id, 
         amount, 
         payment_date, 
-        transfer_from || null,  // Convert empty string or undefined to null
-        proofUrl, 
-        notes || null,          // Convert empty string or undefined to null
+        transfer_from ? transfer_from : null,
+        proofUrl ? proofUrl : null,
+        notes ? notes : null,
         user.id, 
         'verified'
       ]
