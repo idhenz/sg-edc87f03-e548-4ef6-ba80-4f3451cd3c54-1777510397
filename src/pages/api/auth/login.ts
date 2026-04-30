@@ -54,17 +54,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: user.role,
     }
 
-    // Production-ready cookie settings
+    // Simplified cookie settings for Vercel
     const isProduction = process.env.NODE_ENV === 'production'
     
-    res.setHeader('Set-Cookie', cookie.serialize('session', JSON.stringify(sessionData), {
+    const cookieOptions: any = {
       httpOnly: true,
       secure: isProduction,
       maxAge: 60 * 60 * 24 * 7, // 7 days
-      sameSite: isProduction ? 'lax' : 'lax',
       path: '/',
-    }))
+    }
 
+    // Only set sameSite in production
+    if (isProduction) {
+      cookieOptions.sameSite = 'lax'
+    }
+
+    res.setHeader('Set-Cookie', cookie.serialize('session', JSON.stringify(sessionData), cookieOptions))
+
+    console.log('Login successful for:', email)
     return res.status(200).json({ user: sessionData })
   } catch (error: any) {
     console.error('Login error:', error)
