@@ -14,7 +14,21 @@ export const config = {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const user = getUserFromRequest(req)
+    // Parse form first to get user_session from FormData
+    const form = new IncomingForm({
+      maxFileSize: 5 * 1024 * 1024,
+      keepExtensions: true,
+    })
+
+    const [fields, files] = await form.parse(req)
+    
+    // Get user from FormData or header
+    let user = getUserFromRequest(req)
+    if (!user && fields.user_session) {
+      const userSessionStr = Array.isArray(fields.user_session) ? fields.user_session[0] : fields.user_session
+      user = JSON.parse(userSessionStr)
+    }
+
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' })
     }
@@ -22,13 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method !== 'POST') {
       return res.status(405).json({ message: 'Method not allowed' })
     }
-
-    const form = formidable({
-      maxFileSize: 5 * 1024 * 1024, // 5MB
-      keepExtensions: true,
-    })
-
-    const [fields, files] = await form.parse(req)
     
     const invoice_id = Array.isArray(fields.invoice_id) ? fields.invoice_id[0] : fields.invoice_id
     const bank_id = Array.isArray(fields.bank_id) ? fields.bank_id[0] : fields.bank_id
@@ -61,14 +68,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
 
-    // Determine new status
-    let newStatus = 'pending'
-    if (amount >= remaining) {
-      newStatus = 'paid'
-    } else if (amount > 0) {
-      newStatus = 'partial'
-    }
-
     // Upload bukti transfer
     let proofUrl = null
     const proofFile = Array.isArray(files.proof) ? files.proof[0] : files.proof
@@ -77,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const fileBuffer = fs.readFileSync(proofFile.filepath)
       const fileName = `payment-proof/${Date.now()}-${proofFile.originalFilename}`
       
-      proofUrl = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream')
+      proofUrl = await uploadToBiznetStorage(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream')
     }
 
     // Insert payment confirmation
