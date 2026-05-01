@@ -36,7 +36,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     params.push(searchPattern, searchPattern, searchPattern)
   }
 
-  sql += ' ORDER BY c.created_at DESC'
+  sql += ' ORDER BY c.id DESC'
 
   const customers = await query(sql, params)
   return res.status(200).json(customers)
