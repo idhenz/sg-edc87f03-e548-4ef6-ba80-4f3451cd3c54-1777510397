@@ -4,10 +4,17 @@ import { getUserFromRequest } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    console.log('[INVOICES_API] ========== REQUEST START ==========')
+    console.log('[INVOICES_API] Method:', req.method)
+    console.log('[INVOICES_API] Query:', req.query)
+    console.log('[INVOICES_API] Headers:', req.headers)
+    
     // Auth check - extract user session from header
     const userSessionStr = req.headers['x-user-session'] as string
+    console.log('[INVOICES_API] x-user-session header:', userSessionStr ? 'Present' : 'Missing')
+    
     if (!userSessionStr) {
-      console.log('[INVOICES_API] No user session header')
+      console.log('[INVOICES_API] ERROR: No user session header')
       return res.status(401).json({ message: 'Unauthorized' })
     }
 
@@ -16,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user = JSON.parse(userSessionStr)
       console.log('[INVOICES_API] User authenticated:', user.email, 'Role:', user.role)
     } catch (e) {
-      console.log('[INVOICES_API] Failed to parse user session')
+      console.log('[INVOICES_API] ERROR: Failed to parse user session')
       return res.status(401).json({ message: 'Unauthorized' })
     }
 

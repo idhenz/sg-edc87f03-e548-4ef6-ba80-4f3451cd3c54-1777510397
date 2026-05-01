@@ -33,29 +33,41 @@ export default function PrintInvoice() {
 
     const fetchData = async () => {
       try {
+        const authHeaders = getAuthHeader()
+        console.log('[PRINT] Auth headers:', authHeaders)
+        console.log('[PRINT] Fetching invoice ID:', id)
+        
         // Fetch invoice
         const invoiceRes = await fetch(`/api/invoices/outgoing?id=${id}`, {
-          headers: getAuthHeader()
+          headers: authHeaders
         })
         
+        console.log('[PRINT] Invoice response status:', invoiceRes.status)
+        
         if (!invoiceRes.ok) {
-          throw new Error(`Failed to fetch invoice: ${invoiceRes.status} - ${await invoiceRes.text()}`)
+          const errorText = await invoiceRes.text()
+          console.error('[PRINT] Invoice fetch failed:', errorText)
+          throw new Error(`Failed to fetch invoice: ${invoiceRes.status} - ${errorText}`)
         }
         
         const invoiceData = await invoiceRes.json()
+        console.log('[PRINT] Invoice data:', invoiceData)
         setInvoice(invoiceData)
 
         // Fetch settings
         const settingsRes = await fetch('/api/settings', {
-          headers: getAuthHeader()
+          headers: authHeaders
         })
+        
+        console.log('[PRINT] Settings response status:', settingsRes.status)
         
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json()
+          console.log('[PRINT] Settings data:', settingsData)
           setSettings(settingsData)
         }
       } catch (error: any) {
-        console.error('Error fetching data:', error)
+        console.error('[PRINT] Error fetching data:', error)
         alert(error.message)
       } finally {
         setLoading(false)
