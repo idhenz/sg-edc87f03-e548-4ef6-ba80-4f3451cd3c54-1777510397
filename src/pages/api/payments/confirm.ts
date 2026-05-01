@@ -107,18 +107,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ) as any;
       
       console.log('[PAYMENT_API] Insert result:', insertResult)
-
-      // Update invoice paid_amount
-      console.log('[PAYMENT_API] Updating invoice paid_amount...')
-      const updateResult = await query(
-        `UPDATE invoices_outgoing 
-         SET paid_amount = COALESCE(paid_amount, 0) + ?, 
-             status = IF(COALESCE(paid_amount, 0) + ? >= total_amount, 'paid', 'partial')
-         WHERE id = ?`,
-        [amount, amount, invoice_id]
-      );
-      
-      console.log('[PAYMENT_API] Update result:', updateResult)
       console.log('[PAYMENT_API] SUCCESS! Payment confirmed')
 
       return res.status(200).json({ 
