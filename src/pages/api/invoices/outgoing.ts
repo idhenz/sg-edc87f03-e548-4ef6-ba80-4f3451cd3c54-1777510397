@@ -10,33 +10,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'GET') {
-      const { id, month, year } = req.query;
+      const { id } = req.query;
 
       if (id) {
-        const result = await query(
-          'SELECT * FROM invoices_outgoing WHERE id = ?',
+        // Get single invoice with payment info
+        const invoice = await query(
+          `SELECT 
+            io.*,
+            COALESCE(SUM(pc.amount), 0) as paid_amount,
+            CASE
+              WHEN COALESCE(SUM(pc.amount), 0) = 0 THEN 'pending'
+              WHEN COALESCE(SUM(pc.amount), 0) >= io.total_amount THEN 'paid'
+              ELSE 'partial'
+            END as payment_status
+          FROM invoices_outgoing io
+          LEFT JOIN payment_confirmations pc ON pc.invoice_id = io.id AND pc.status = 'verified'
+          WHERE io.id = ?
+          GROUP BY io.id`,
           [id]
-        );
-        
-        if (!result || result.length === 0) {
-          return res.status(404).json({ message: 'Invoice tidak ditemukan' });
-        }
-        
-        return res.status(200).json(result[0]);
+        ) as any[];
+
+        return res.status(200).json(invoice[0] || null);
       }
 
-      let sql = 'SELECT * FROM invoices_outgoing';
-      const params: any[] = [];
+      // Get all invoices with payment info
+      const invoices = await query(
+        `SELECT 
+          io.*,
+          COALESCE(SUM(pc.amount), 0) as paid_amount,
+          CASE
+            WHEN COALESCE(SUM(pc.amount), 0) = 0 THEN 'pending'
+            WHEN COALESCE(SUM(pc.amount), 0) >= io.total_amount THEN 'paid'
+            ELSE 'partial'
+          END as payment_status
+        FROM invoices_outgoing io
+        LEFT JOIN payment_confirmations pc ON pc.invoice_id = io.id AND pc.status = 'verified'
+        GROUP BY io.id
+        ORDER BY io.created_at DESC`
+      ) as any[];
 
-      if (month && year) {
-        sql += ' WHERE MONTH(created_at) = ? AND YEAR(created_at) = ?';
-        params.push(month, year);
-      }
-
-      sql += ' ORDER BY id DESC';
-
-      const invoices = await query(sql, params);
-      
       return res.status(200).json(invoices);
     }
 
