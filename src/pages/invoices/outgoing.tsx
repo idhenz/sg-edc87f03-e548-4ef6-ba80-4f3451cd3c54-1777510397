@@ -13,10 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Edit, Trash2, Printer, DollarSign, Calendar, User, Package, FileText, CheckCircle, Clock, XCircle, Eye, Activity, TrendingUp, TrendingDown, Search, Pencil, ExternalLink, Download } from 'lucide-react'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
-import { ProtectedRoute as ProtectedRouteComponent } from '@/components/ProtectedRoute'
+import { Plus, Edit, Trash2, Printer, DollarSign, Calendar, User, Package, FileText, CheckCircle, Clock, XCircle, Eye } from 'lucide-react'
 
 interface Invoice {
   id: number
