@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import AppLayout from '@/components/AppLayout'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Package, FileText, DollarSign, TrendingUp, Activity } from 'lucide-react'
