@@ -126,9 +126,13 @@ export default function InvoiceOutgoingPage() {
     try {
       const res = await fetch('/api/banks', { headers: getAuthHeader() })
       const data = await res.json()
+      console.log('[FETCH_BANKS] Response:', data)
+      console.log('[FETCH_BANKS] isArray:', Array.isArray(data))
+      console.log('[FETCH_BANKS] Length:', data?.length)
       setBanks(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to fetch banks:', error)
+      setBanks([])
     }
   }
 
