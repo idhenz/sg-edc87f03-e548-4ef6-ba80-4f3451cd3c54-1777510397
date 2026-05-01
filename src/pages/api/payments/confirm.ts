@@ -80,37 +80,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       proofUrl = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream')
     }
 
-    // Insert payment confirmation - explicitly convert all optional values to null
+    // Insert payment confirmation
     await query(
       `INSERT INTO payment_confirmations 
-       (invoice_id, bank_id, amount, payment_date, transfer_from, proof_url, notes, confirmed_by, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        invoice_id, 
-        bank_id, 
-        amount, 
-        payment_date, 
-        transfer_from ? transfer_from : null,
-        proofUrl ? proofUrl : null,
-        notes ? notes : null,
-        user.id, 
-        'verified'
-      ]
+       (invoice_id, bank_id, amount, payment_date, transfer_from, notes, proof_url, status, created_by) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [invoice_id, bank_id, amount, payment_date, transfer_from, notes, proofUrl, user.id]
     )
 
-    // Update invoice status and paid_amount
+    // Update invoice paid_amount
+    const newPaidAmount = parseFloat(invoice.paid_amount || '0') + amount
     await query(
-      'UPDATE invoices_outgoing SET status = ?, paid_amount = ? WHERE id = ?',
-      [newStatus, amount, invoice_id]
+      'UPDATE invoices_outgoing SET paid_amount = ?, status = ? WHERE id = ?',
+      [newPaidAmount, newPaidAmount >= parseFloat(invoice.total_amount || invoice.amount) ? 'paid' : 'partial', invoice_id]
     )
 
-    return res.status(201).json({ 
-      message: 'Konfirmasi pembayaran berhasil',
-      status: newStatus,
-      paid_amount: amount,
-      proof_url: proofUrl 
+    return res.status(200).json({ 
+      message: 'Konfirmasi pembayaran berhasil disimpan dan menunggu verifikasi',
+      paid_amount: newPaidAmount
     })
-  } catch (error) {
-    return res.status(500).json({ message: 'Internal server error' })
+  } catch (error: any) {
+    console.error('[PAYMENT_CONFIRM_ERROR]', error)
+    return res.status(500).json({ 
+      message: 'Terjadi kesalahan pada server', 
+      error: error.message 
+    })
   }
 }

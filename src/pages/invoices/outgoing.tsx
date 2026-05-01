@@ -257,6 +257,7 @@ export default function InvoicesOutgoingPage() {
       return
     }
 
+    setLoading(true)
     try {
       const formDataToSend = new FormData()
       formDataToSend.append('invoice_id', selectedInvoice.id.toString())
@@ -269,6 +270,7 @@ export default function InvoicesOutgoingPage() {
 
       const res = await fetch('/api/payments/confirm', {
         method: 'POST',
+        headers: getAuthHeader(),
         body: formDataToSend
       })
 
@@ -278,12 +280,23 @@ export default function InvoicesOutgoingPage() {
         toast({ title: 'Sukses', description: 'Pembayaran berhasil dikonfirmasi' })
         setShowPaymentDialog(false)
         setSelectedInvoice(null)
+        setPaymentData({
+          bank_id: '',
+          amount: '',
+          payment_date: new Date().toISOString().split('T')[0],
+          transfer_from: '',
+          notes: ''
+        })
+        setProofFile(null)
         fetchInvoices()
       } else {
-        toast({ title: 'Error', description: data.message, variant: 'destructive' })
+        toast({ title: 'Error', description: data.message || 'Gagal menyimpan pembayaran', variant: 'destructive' })
       }
-    } catch {
+    } catch (error) {
+      console.error('Payment error:', error)
       toast({ title: 'Error', description: 'Terjadi kesalahan pada server', variant: 'destructive' })
+    } finally {
+      setLoading(false)
     }
   }
 
