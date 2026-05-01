@@ -12,7 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const { id, month, year } = req.query;
 
-      // Get single invoice by ID
       if (id) {
         const result = await query(
           `SELECT io.*, c.name as customer_name 
@@ -29,7 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json(result[0]);
       }
 
-      // Get all invoices with optional month/year filter
       let sql = `SELECT io.*, c.name as customer_name 
                  FROM invoices_outgoing io
                  LEFT JOIN customers c ON io.customer_id = c.id`;
@@ -45,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const invoices = await query(sql, params);
       
-      return res.status(200).json(Array.isArray(invoices) ? invoices : []);
+      return res.status(200).json(invoices || []);
     }
 
     if (req.method === 'POST') {
