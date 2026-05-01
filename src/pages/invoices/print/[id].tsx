@@ -38,35 +38,34 @@ export default function InvoicePrintPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('auth_token')
-      const headers = {
-        'Authorization': `Bearer ${token}`
-      }
+      const headers = getAuthHeader()
 
-      // Fetch Invoice
+      // Fetch invoice
       const invRes = await fetch(`/api/invoices/outgoing?id=${id}`, { headers })
+      if (!invRes.ok) throw new Error('Failed to fetch invoice')
       const invData = await invRes.json()
-      
-      // Fetch Settings (Company Info)
-      const setRes = await fetch('/api/settings', { headers })
-      const setData = await setRes.json()
-      
-      // Fetch Banks
-      const bankRes = await fetch('/api/banks', { headers })
-      const bankData = await bankRes.json()
+      setInvoice(invData)
 
-      if (invData.invoice) {
-        setInvoice(invData.invoice)
+      // Fetch settings
+      const settingsRes = await fetch('/api/settings', { headers })
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        setSettings(settingsData)
       }
-      if (setData.settings) {
-        setSettings(setData.settings)
+
+      // Fetch banks
+      const banksRes = await fetch('/api/banks', { headers })
+      if (banksRes.ok) {
+        const banksData = await banksRes.json()
+        setBanks(banksData)
       }
-      if (bankData.banks) {
-        setBanks(bankData.banks)
-      }
+
+      setLoading(false)
+      
+      // Auto print after data loaded
+      setTimeout(() => window.print(), 1000)
     } catch (error) {
-      console.error('Error fetching print data:', error)
-    } finally {
+      console.error('Failed to load invoice:', error)
       setLoading(false)
     }
   }
