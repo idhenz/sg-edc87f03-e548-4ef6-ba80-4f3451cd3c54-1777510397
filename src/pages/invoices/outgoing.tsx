@@ -122,16 +122,6 @@ export default function InvoiceOutgoingPage() {
     }
   }
 
-  const fetchProducts = async () => {
-    try {
-      const res = await fetch('/api/products', { headers: getAuthHeader() })
-      const data = await res.json()
-      setProducts(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Failed to fetch products:', error)
-    }
-  }
-
   const fetchBanks = async () => {
     try {
       const res = await fetch('/api/banks', { headers: getAuthHeader() })
