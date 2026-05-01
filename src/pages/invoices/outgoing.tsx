@@ -254,7 +254,6 @@ export default function InvoiceOutgoingPage() {
   const openPaymentDialog = (invoice: Invoice) => {
     setSelectedInvoice(invoice)
     const remaining = parseFloat(invoice.total_amount || invoice.amount) - parseFloat(invoice.paid_amount || '0')
-    setPaymentAmount(remaining.toString())
     setPaymentData({
       bank_id: '',
       amount: remaining.toString(),
@@ -291,8 +290,31 @@ export default function InvoiceOutgoingPage() {
     })
   }
 
-  const handlePrint = (invoice: Invoice) => {
-    router.push(`/invoices/print/${invoice.id}`)
+  const handlePrint = async (invoiceId: number) => {
+    try {
+      const res = await fetch(`/api/invoices/outgoing?id=${invoiceId}`, {
+        headers: getAuthHeader()
+      })
+      
+      if (!res.ok) {
+        toast({
+          title: 'Error',
+          description: 'Gagal memuat data invoice',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const invoice = await res.json()
+      window.open(`/invoices/print/${invoiceId}`, '_blank')
+    } catch (error) {
+      console.error('Print error:', error)
+      toast({
+        title: 'Error',
+        description: 'Terjadi kesalahan saat memuat invoice',
+        variant: 'destructive'
+      })
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -411,7 +433,7 @@ export default function InvoiceOutgoingPage() {
                         <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handlePrint(invoice)}>
+                            <Button size="sm" variant="outline" onClick={() => handlePrint(invoice.id)}>
                               <Printer className="h-4 w-4" />
                             </Button>
                             {invoice.status !== 'paid' && (
