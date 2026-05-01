@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Edit, Trash2, Printer, DollarSign, Calendar, User, Package, FileText, CheckCircle, Clock, XCircle, Eye, Activity, TrendingUp, TrendingDown, Search, Pencil, ExternalLink, Download } from 'lucide-react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 interface Invoice {
   id: number
@@ -1048,7 +1050,7 @@ export default function InvoicesOutgoingPage() {
                         type="number"
                         value={paymentData.amount}
                         onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
-                        max={parseFloat(selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')}
+                        max={parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')}
                         required
                       />
                     </div>
