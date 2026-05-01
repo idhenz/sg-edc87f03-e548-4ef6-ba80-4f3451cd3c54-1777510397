@@ -15,10 +15,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Get single invoice by ID
       if (id) {
         const result = await query(
-          `SELECT io.*, c.name as customer_name, p.name as product_name 
+          `SELECT io.*, c.name as customer_name 
            FROM invoices_outgoing io
            LEFT JOIN customers c ON io.customer_id = c.id
-           LEFT JOIN products p ON io.product_id = p.id
            WHERE io.id = ?`,
           [id]
         );
@@ -31,10 +30,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Get all invoices with optional month/year filter
-      let sql = `SELECT io.*, c.name as customer_name, p.name as product_name 
+      let sql = `SELECT io.*, c.name as customer_name 
                  FROM invoices_outgoing io
-                 LEFT JOIN customers c ON io.customer_id = c.id
-                 LEFT JOIN products p ON io.product_id = p.id`;
+                 LEFT JOIN customers c ON io.customer_id = c.id`;
       
       const params: any[] = [];
 
@@ -47,14 +45,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const invoices = await query(sql, params);
       
-      // ALWAYS return array
       return res.status(200).json(Array.isArray(invoices) ? invoices : []);
     }
 
     if (req.method === 'POST') {
-      const { customer_id, product_id, amount, invoice_date, due_date, notes, status } = req.body;
+      const { customer_id, amount, invoice_date, due_date, notes, status } = req.body;
 
-      if (!customer_id || !product_id || !amount || !invoice_date || !due_date) {
+      if (!customer_id || !amount || !invoice_date || !due_date) {
         return res.status(400).json({ message: 'Data tidak lengkap' });
       }
 
@@ -64,18 +61,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       await query(
         `INSERT INTO invoices_outgoing 
-         (customer_id, product_id, amount, tax_amount, total_amount, invoice_date, due_date, notes, status, paid_amount, created_by) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-        [customer_id, product_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status || 'pending', user.id]
+         (customer_id, amount, tax_amount, total_amount, invoice_date, due_date, notes, status, paid_amount, created_by) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [customer_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status || 'pending', user.id]
       );
 
       return res.status(201).json({ message: 'Invoice berhasil ditambahkan' });
     }
 
     if (req.method === 'PUT') {
-      const { id, customer_id, product_id, amount, invoice_date, due_date, notes, status } = req.body;
+      const { id, customer_id, amount, invoice_date, due_date, notes, status } = req.body;
 
-      if (!id || !customer_id || !product_id || !amount || !invoice_date || !due_date) {
+      if (!id || !customer_id || !amount || !invoice_date || !due_date) {
         return res.status(400).json({ message: 'Data tidak lengkap' });
       }
 
@@ -85,10 +82,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       await query(
         `UPDATE invoices_outgoing 
-         SET customer_id = ?, product_id = ?, amount = ?, tax_amount = ?, total_amount = ?, 
+         SET customer_id = ?, amount = ?, tax_amount = ?, total_amount = ?, 
              invoice_date = ?, due_date = ?, notes = ?, status = ? 
          WHERE id = ?`,
-        [customer_id, product_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status, id]
+        [customer_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status, id]
       );
 
       return res.status(200).json({ message: 'Invoice berhasil diperbarui' });
