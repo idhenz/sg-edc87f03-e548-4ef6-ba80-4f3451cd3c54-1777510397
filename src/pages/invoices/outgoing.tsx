@@ -465,9 +465,16 @@ export default function InvoiceOutgoingPage() {
                             <Button size="sm" variant="outline" onClick={() => handlePrint(invoice.id)}>
                               <Printer className="h-4 w-4" />
                             </Button>
-                            {invoice.status !== 'paid' && (
-                              <Button size="sm" variant="outline" onClick={() => openPaymentDialog(invoice)}>
-                                <DollarSign className="h-4 w-4" />
+                            {invoice.payment_status !== 'paid' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setSelectedInvoice(invoice)
+                                  setShowPaymentDialog(true)
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 text-green-600" />
                               </Button>
                             )}
                             <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
