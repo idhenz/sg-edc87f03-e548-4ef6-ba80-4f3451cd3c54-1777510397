@@ -78,10 +78,9 @@ export default function InvoiceOutgoingPage() {
     if (user) {
       fetchInvoices()
       fetchCustomers()
-      fetchProducts()
       fetchBanks()
     }
-  }, [user, selectedMonth, selectedYear])
+  }, [user, filterMonth, filterYear])
 
   const fetchInvoices = async () => {
     try {
@@ -346,29 +345,38 @@ export default function InvoiceOutgoingPage() {
               <div className="flex gap-4 items-center">
                 <div>
                   <Label>Bulan</Label>
-                  <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue />
+                      <SelectValue placeholder="Pilih Bulan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                        <SelectItem key={m} value={m.toString()}>
-                          {new Date(2000, m - 1).toLocaleDateString('id-ID', { month: 'long' })}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="">Semua Bulan</SelectItem>
+                      <SelectItem value="1">Januari</SelectItem>
+                      <SelectItem value="2">Februari</SelectItem>
+                      <SelectItem value="3">Maret</SelectItem>
+                      <SelectItem value="4">April</SelectItem>
+                      <SelectItem value="5">Mei</SelectItem>
+                      <SelectItem value="6">Juni</SelectItem>
+                      <SelectItem value="7">Juli</SelectItem>
+                      <SelectItem value="8">Agustus</SelectItem>
+                      <SelectItem value="9">September</SelectItem>
+                      <SelectItem value="10">Oktober</SelectItem>
+                      <SelectItem value="11">November</SelectItem>
+                      <SelectItem value="12">Desember</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label>Tahun</Label>
-                  <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue />
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Pilih Tahun" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(y => (
-                        <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                      ))}
+                      <SelectItem value="">Semua Tahun</SelectItem>
+                      <SelectItem value="2024">2024</SelectItem>
+                      <SelectItem value="2025">2025</SelectItem>
+                      <SelectItem value="2026">2026</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
