@@ -53,7 +53,9 @@ export default function InvoiceOutgoingPage() {
   const [showDialog, setShowDialog] = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showPrintDialog, setShowPrintDialog] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [selectedPrintId, setSelectedPrintId] = useState<number | null>(null)
   const [proofFile, setProofFile] = useState<File | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   
