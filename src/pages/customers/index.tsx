@@ -355,59 +355,32 @@ export default function CustomersPage() {
     fetchPPPoESecrets()
   }, [])
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('type', fileType)
+    setUploadingFile(true)
+    const formDataUpload = new FormData()
+    formDataUpload.append('file', file)
 
     try {
-      setUploadingFile(fileType)
-      const token = localStorage.getItem('auth_token')
       const res = await fetch('/api/customers/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
+        headers: getAuthHeader(),
+        body: formDataUpload
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.message || 'Upload failed')
+      if (res.ok) {
+        const data = await res.json()
+        setFormData(prev => ({ ...prev, [fieldName]: data.url }))
+        toast({ title: 'Upload Berhasil', description: 'File berhasil diupload' })
+      } else {
+        toast({ title: 'Upload Gagal', description: 'Gagal upload file', variant: 'destructive' })
       }
-
-      const data = await res.json()
-      
-      switch (fileType) {
-        case 'ktp':
-          setKtpFile(data.fileUrl)
-          break
-        case 'npwp':
-          setNpwpFile(data.fileUrl)
-          break
-        case 'nib':
-          setNibFile(data.fileUrl)
-          break
-        case 'sertifikat_standar':
-          setSertifikatFile(data.fileUrl)
-          break
-      }
-
-      toast({
-        title: 'Berhasil',
-        description: 'File berhasil diupload',
-      })
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Gagal mengupload file',
-        variant: 'destructive',
-      })
+    } catch (error) {
+      toast({ title: 'Upload Gagal', description: 'Gagal upload file', variant: 'destructive' })
     } finally {
-      setUploadingFile('')
+      setUploadingFile(false)
     }
   }
 
