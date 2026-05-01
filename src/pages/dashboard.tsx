@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import ProtectedRoute from '@/components/ProtectedRoute'
 import AppLayout from '@/components/AppLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Package, FileText, DollarSign } from 'lucide-react'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Users, Package, FileText, DollarSign, TrendingUp, Activity } from 'lucide-react'
 
 interface DashboardStats {
   totalCustomers: number
@@ -11,47 +12,48 @@ interface DashboardStats {
   monthlyRevenue: number
 }
 
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('auth_token')
-  return {
-    'Authorization': `Bearer ${token}`
-  }
-}
-
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
+  const { user, getAuthHeader } = useAuth()
+  const [stats, setStats] = useState({
     totalCustomers: 0,
+    activeCustomers: 0,
     totalProducts: 0,
-    pendingInvoices: 0,
     monthlyRevenue: 0,
+    pendingInvoices: 0,
+    onlineConnections: 0
   })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardStats()
-  }, [])
+    if (user) {
+      fetchStats()
+    }
+  }, [user])
 
-  const fetchDashboardStats = async () => {
+  const fetchStats = async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      
       const [customersRes, productsRes] = await Promise.all([
-        fetch('/api/customers', { headers: getAuthHeaders() }),
-        fetch('/api/products', { headers: getAuthHeaders() }),
+        fetch('/api/customers', { headers: getAuthHeader() }),
+        fetch('/api/products', { headers: getAuthHeader() }),
       ])
 
-      const customersData = await customersRes.json()
-      const productsData = await productsRes.json()
+      const customers = customersRes.ok ? await customersRes.json() : []
+      const products = productsRes.ok ? await productsRes.json() : []
+
+      const activeCustomers = customers.filter((c: any) => c.status === 'active').length
+      const onlineConnections = customers.filter((c: any) => c.pppoe_online).length
 
       setStats({
-        totalCustomers: customersData.customers?.length || 0,
-        totalProducts: productsData.products?.length || 0,
-        pendingInvoices: 0,
+        totalCustomers: customers.length,
+        activeCustomers,
+        totalProducts: products.length,
         monthlyRevenue: 0,
+        pendingInvoices: 0,
+        onlineConnections
       })
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error)
+      console.error('Failed to fetch stats:', error)
     } finally {
       setLoading(false)
     }

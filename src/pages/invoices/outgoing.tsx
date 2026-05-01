@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { useRouter } from 'next/router'
+import { ProtectedRoute as ProtectedRouteComponent } from '@/components/ProtectedRoute'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Invoice {
   id: number
@@ -59,6 +62,10 @@ interface Settings {
 }
 
 export default function InvoicesOutgoingPage() {
+  const router = useRouter()
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [banks, setBanks] = useState<Bank[]>([])
   const [settings, setSettings] = useState<any>(null)
@@ -104,8 +111,6 @@ export default function InvoicesOutgoingPage() {
   })
   const [proofFile, setProofFile] = useState<File | null>(null)
 
-  const { toast } = useToast()
-
   useEffect(() => {
     fetchInvoices()
     fetchBanks()
@@ -131,7 +136,7 @@ export default function InvoicesOutgoingPage() {
       
       if (params.toString()) url += `?${params.toString()}`
       
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: getAuthHeader() })
       const data = await res.json()
       setInvoices(data.invoices || [])
     } catch {
@@ -141,7 +146,7 @@ export default function InvoicesOutgoingPage() {
 
   const fetchBanks = async () => {
     try {
-      const res = await fetch('/api/banks')
+      const res = await fetch('/api/banks', { headers: getAuthHeader() })
       const data = await res.json()
       
       // Handle both direct array or { banks: [] } object format
@@ -154,7 +159,7 @@ export default function InvoicesOutgoingPage() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/settings')
+      const res = await fetch('/api/settings', { headers: getAuthHeader() })
       const data = await res.json()
       // API returns array [{}], we need the first object
       const settingsData = Array.isArray(data) ? data[0] : data
@@ -167,7 +172,7 @@ export default function InvoicesOutgoingPage() {
 
   const fetchPaymentHistory = async (invoiceId: number) => {
     try {
-      const res = await fetch(`/api/payments/history?invoice_id=${invoiceId}`)
+      const res = await fetch(`/api/payments/history?invoice_id=${invoiceId}`, { headers: getAuthHeader() })
       const data = await res.json()
       setPaymentHistory(data.payments || [])
     } catch {
@@ -301,7 +306,7 @@ export default function InvoicesOutgoingPage() {
     if (!confirm('Yakin ingin menghapus invoice ini?')) return
 
     try {
-      const res = await fetch(`/api/invoices/outgoing?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/invoices/outgoing?id=${id}`, { method: 'DELETE', headers: getAuthHeader() })
       const data = await res.json()
 
       if (res.ok) {
@@ -331,7 +336,7 @@ export default function InvoicesOutgoingPage() {
       // Ensure settings are loaded first
       let currentSettings = settings
       if (!currentSettings) {
-        const res = await fetch('/api/settings')
+        const res = await fetch('/api/settings', { headers: getAuthHeader() })
         const data = await res.json()
         currentSettings = Array.isArray(data) ? data[0] : data
         setSettings(currentSettings)
@@ -340,7 +345,7 @@ export default function InvoicesOutgoingPage() {
       // Ensure banks are loaded
       let currentBanks = banks
       if (!currentBanks || currentBanks.length === 0) {
-        const res = await fetch('/api/banks')
+        const res = await fetch('/api/banks', { headers: getAuthHeader() })
         const data = await res.json()
         const banksList = Array.isArray(data) ? data : (data.banks || [])
         currentBanks = banksList.filter((b: Bank) => b.is_active)

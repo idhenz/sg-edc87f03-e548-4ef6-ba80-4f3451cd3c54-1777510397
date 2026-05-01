@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Customer {
   id: number
@@ -82,23 +83,28 @@ interface ActivationHistory {
   created_at: string
 }
 
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('auth_token')
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  }
-}
-
 export default function CustomersPage() {
+  const router = useRouter()
+  const { user, getAuthHeader } = useAuth()
+  const { toast } = useToast()
+
   const [customers, setCustomers] = useState<Customer[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [currentCustomer, setCurrentCustomer] = useState<Partial<Customer>>({})
-  const { toast } = useToast()
+  const [uploadingFile, setUploadingFile] = useState('')
+  const [ktpFile, setKtpFile] = useState<string | null>(null)
+  const [npwpFile, setNpwpFile] = useState<string | null>(null)
+  const [nibFile, setNibFile] = useState<string | null>(null)
+  const [sertifikatFile, setSertifikatFile] = useState<string | null>(null)
+  const [deleteFlags, setDeleteFlags] = useState({
+    ktp: false,
+    npwp: false,
+    nib: false,
+    sertifikat: false
+  })
 
   // Filter states
   const [filterProduct, setFilterProduct] = useState<string>('all')
@@ -119,18 +125,6 @@ export default function CustomersPage() {
   const [selectedVillage, setSelectedVillage] = useState('')
   const [selectedCustomerType, setSelectedCustomerType] = useState('personal')
   const [selectedPppoeSecret, setSelectedPppoeSecret] = useState<string>('')
-
-  const [uploadingFile, setUploadingFile] = useState('')
-  const [ktpFile, setKtpFile] = useState<string | null>(null)
-  const [npwpFile, setNpwpFile] = useState<string | null>(null)
-  const [nibFile, setNibFile] = useState<string | null>(null)
-  const [sertifikatFile, setSertifikatFile] = useState<string | null>(null)
-  const [deleteFlags, setDeleteFlags] = useState({
-    ktp: false,
-    npwp: false,
-    nib: false,
-    sertifikat: false
-  })
 
   // Activation states
   const [activationDialogOpen, setActivationDialogOpen] = useState(false)
@@ -159,7 +153,7 @@ export default function CustomersPage() {
     try {
       setLoading(true)
       const res = await fetch('/api/customers', {
-        headers: getAuthHeaders()
+        headers: getAuthHeader()
       })
       const data = await res.json()
       setCustomers(data.customers || [])
@@ -177,7 +171,7 @@ export default function CustomersPage() {
   const fetchProvinces = async () => {
     try {
       const res = await fetch('/api/regions/provinces', {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setProvinces(data.provinces || [])
@@ -189,7 +183,7 @@ export default function CustomersPage() {
   const fetchRegencies = async (provinceId: string) => {
     try {
       const res = await fetch(`/api/regions/regencies?province_id=${provinceId}`, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setRegencies(data.regencies || [])
@@ -201,7 +195,7 @@ export default function CustomersPage() {
   const fetchDistricts = async (regencyId: string) => {
     try {
       const res = await fetch(`/api/regions/districts?regency_id=${regencyId}`, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setDistricts(data.districts || [])
@@ -213,7 +207,7 @@ export default function CustomersPage() {
   const fetchVillages = async (districtId: string) => {
     try {
       const res = await fetch(`/api/regions/villages?district_id=${districtId}`, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setVillages(data.villages || [])
@@ -225,7 +219,7 @@ export default function CustomersPage() {
   const fetchProducts = async () => {
     try {
       const res = await fetch('/api/products', {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setProducts(data.products || [])
@@ -237,7 +231,7 @@ export default function CustomersPage() {
   const fetchVendors = async () => {
     try {
       const res = await fetch('/api/vendors', {
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
       })
       const data = await res.json()
       setVendors(data.vendors || [])
@@ -305,7 +299,7 @@ export default function CustomersPage() {
     try {
       setHistoryLoading(true)
       const res = await fetch(`/api/activations?customer_id=${customerId}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeader()
       })
       const data = await res.json()
       setActivationHistory(data.history || [])
@@ -469,7 +463,7 @@ export default function CustomersPage() {
       
       const res = await fetch(url, {
         method,
-        headers: getAuthHeaders(),
+        headers: getAuthHeader(),
         body: JSON.stringify(data),
       })
 
@@ -513,7 +507,7 @@ export default function CustomersPage() {
     try {
       setActivationSaving(true)
       
-      const headers = getAuthHeaders()
+      const headers = getAuthHeader()
       console.log('Request headers:', headers)
       
       const res = await fetch('/api/activations', {
@@ -609,7 +603,7 @@ export default function CustomersPage() {
     try {
       const res = await fetch(`/api/customers?id=${id}`, { 
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeader()
       })
       if (!res.ok) throw new Error('Gagal menghapus data')
 
