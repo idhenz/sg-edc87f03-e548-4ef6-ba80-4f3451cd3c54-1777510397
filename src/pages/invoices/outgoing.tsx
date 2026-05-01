@@ -449,7 +449,17 @@ export default function InvoiceOutgoingPage() {
                         <TableCell>Rp {parseFloat(invoice.tax_amount || '0').toLocaleString('id-ID')}</TableCell>
                         <TableCell>Rp {parseFloat(invoice.total_amount || invoice.amount).toLocaleString('id-ID')}</TableCell>
                         <TableCell>Rp {parseFloat(invoice.paid_amount || '0').toLocaleString('id-ID')}</TableCell>
-                        <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            invoice.payment_status === 'paid' ? 'default' : 
+                            invoice.payment_status === 'partial' ? 'secondary' : 
+                            'destructive'
+                          }>
+                            {invoice.payment_status === 'paid' ? 'Lunas' : 
+                             invoice.payment_status === 'partial' ? 'Sebagian' : 
+                             'Belum Bayar'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => handlePrint(invoice.id)}>
