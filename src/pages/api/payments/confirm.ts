@@ -22,78 +22,121 @@ function getUserFromFormData(fields: any) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('[PAYMENT_API] ========== START ==========')
+  console.log('[PAYMENT_API] Method:', req.method)
+  console.log('[PAYMENT_API] Headers:', req.headers)
+  
   if (req.method !== 'POST') {
+    console.log('[PAYMENT_API] ERROR: Method not allowed')
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  try {
-    const form = new IncomingForm();
-    
-    const [fields, files] = await new Promise<[any, any]>((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve([fields, files]);
-      });
-    });
+  const form = new IncomingForm({ 
+    uploadDir: '/tmp', 
+    keepExtensions: true,
+    maxFileSize: 5 * 1024 * 1024 // 5MB
+  });
 
-    const user = getUserFromFormData(fields);
-    if (!user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      console.error('[PAYMENT_API] Form parse error:', err);
+      return res.status(500).json({ message: 'Failed to parse form data', error: err.message });
     }
 
-    const invoice_id = fields.invoice_id?.[0];
-    const bank_id = fields.bank_id?.[0];
-    const amount = fields.amount?.[0];
-    const payment_date = fields.payment_date?.[0];
-    const transfer_from = fields.transfer_from?.[0] || null;
-    const notes = fields.notes?.[0] || null;
-    const proofFile = files.proof?.[0];
+    console.log('[PAYMENT_API] Fields received:', fields)
+    console.log('[PAYMENT_API] Files received:', files)
 
-    if (!invoice_id || !bank_id || !amount || !payment_date || !proofFile) {
-      return res.status(400).json({ message: 'Data tidak lengkap' });
-    }
+    try {
+      // Extract user session
+      const userSessionStr = Array.isArray(fields.user_session) ? fields.user_session[0] : fields.user_session;
+      if (!userSessionStr) {
+        console.log('[PAYMENT_API] ERROR: No user session')
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
 
-    // Upload proof to Biznet GIO Storage
-    let proofUrl = '';
-    if (proofFile && proofFile.filepath) {
-      const fileBuffer = fs.readFileSync(proofFile.filepath);
-      const fileName = `payment-proofs/${Date.now()}-${proofFile.originalFilename}`;
-      proofUrl = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream');
+      const user = JSON.parse(userSessionStr);
+      console.log('[PAYMENT_API] User authenticated:', user.email, 'Role:', user.role)
+
+      // Extract form data
+      const invoice_id = Array.isArray(fields.invoice_id) ? fields.invoice_id[0] : fields.invoice_id;
+      const bank_id = Array.isArray(fields.bank_id) ? fields.bank_id[0] : fields.bank_id;
+      const amount = Array.isArray(fields.amount) ? fields.amount[0] : fields.amount;
+      const payment_date = Array.isArray(fields.payment_date) ? fields.payment_date[0] : fields.payment_date;
+      const transfer_from = Array.isArray(fields.transfer_from) ? fields.transfer_from[0] : fields.transfer_from || '';
+      const notes = Array.isArray(fields.notes) ? fields.notes[0] : fields.notes || '';
+      const proof = Array.isArray(files.proof) ? files.proof[0] : files.proof;
+
+      console.log('[PAYMENT_API] Extracted data:')
+      console.log('[PAYMENT_API] - invoice_id:', invoice_id)
+      console.log('[PAYMENT_API] - bank_id:', bank_id)
+      console.log('[PAYMENT_API] - amount:', amount)
+      console.log('[PAYMENT_API] - payment_date:', payment_date)
+      console.log('[PAYMENT_API] - transfer_from:', transfer_from)
+      console.log('[PAYMENT_API] - notes:', notes)
+      console.log('[PAYMENT_API] - proof file:', proof?.originalFilename, proof?.mimetype)
+
+      if (!invoice_id || !bank_id || !amount || !payment_date || !proof) {
+        console.log('[PAYMENT_API] ERROR: Missing required fields')
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      // Upload proof to Biznet GIO Storage
+      console.log('[PAYMENT_API] Uploading file to Biznet Storage...')
+      let proofUrl = '';
+      if (proof && proof.filepath) {
+        const fileBuffer = fs.readFileSync(proof.filepath);
+        const fileName = `payment-proofs/${Date.now()}-${proof.originalFilename}`;
+        console.log('[PAYMENT_API] File buffer size:', fileBuffer.length)
+        console.log('[PAYMENT_API] File name:', fileName)
+        
+        proofUrl = await uploadFile(fileBuffer, fileName, proof.mimetype || 'application/octet-stream');
+        console.log('[PAYMENT_API] Upload success! URL:', proofUrl)
+        
+        // Delete temp file
+        fs.unlinkSync(proof.filepath);
+        console.log('[PAYMENT_API] Temp file deleted')
+      }
+
+      // Insert payment confirmation
+      console.log('[PAYMENT_API] Inserting payment confirmation to database...')
+      const insertResult = await query(
+        `INSERT INTO payment_confirmations 
+         (invoice_id, bank_id, amount, payment_date, transfer_from, notes, proof_url, confirmed_by, status) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'verified')`,
+        [invoice_id, bank_id, amount, payment_date, transfer_from, notes, proofUrl, user.id]
+      ) as any;
       
-      // Delete temp file
-      fs.unlinkSync(proofFile.filepath);
+      console.log('[PAYMENT_API] Insert result:', insertResult)
+
+      // Update invoice paid_amount
+      console.log('[PAYMENT_API] Updating invoice paid_amount...')
+      const updateResult = await query(
+        `UPDATE invoices_outgoing 
+         SET paid_amount = COALESCE(paid_amount, 0) + ?, 
+             status = IF(COALESCE(paid_amount, 0) + ? >= total_amount, 'paid', 'partial')
+         WHERE id = ?`,
+        [amount, amount, invoice_id]
+      );
+      
+      console.log('[PAYMENT_API] Update result:', updateResult)
+      console.log('[PAYMENT_API] SUCCESS! Payment confirmed')
+
+      return res.status(200).json({ 
+        message: 'Payment confirmed successfully',
+        payment_id: insertResult.insertId,
+        proof_url: proofUrl
+      });
+
+    } catch (error: any) {
+      console.error('[PAYMENT_API] ERROR:', error);
+      console.error('[PAYMENT_API] Error message:', error.message);
+      console.error('[PAYMENT_API] Error stack:', error.stack);
+      return res.status(500).json({ 
+        message: 'Terjadi kesalahan pada server', 
+        error: error.message 
+      });
+    } finally {
+      console.log('[PAYMENT_API] ========== END ==========')
     }
-
-    // Insert payment confirmation with correct column names
-    await query(
-      `INSERT INTO payment_confirmations 
-       (invoice_id, bank_id, amount, payment_date, transfer_from, notes, proof_url, confirmed_by, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'verified')`,
-      [invoice_id, bank_id, amount, payment_date, transfer_from, notes, proofUrl, user.id]
-    );
-
-    // Update invoice paid_amount and status
-    await query(
-      `UPDATE invoices_outgoing 
-       SET paid_amount = paid_amount + ?, 
-           status = CASE 
-             WHEN (paid_amount + ?) >= total_amount THEN 'paid'
-             ELSE 'partial'
-           END
-       WHERE id = ?`,
-      [amount, amount, invoice_id]
-    );
-
-    return res.status(200).json({ 
-      message: 'Pembayaran berhasil dikonfirmasi',
-      proof_url: proofUrl 
-    });
-
-  } catch (error: any) {
-    console.error('[PAYMENT_CONFIRM_ERROR]', error);
-    return res.status(500).json({ 
-      message: 'Terjadi kesalahan pada server', 
-      error: error.message 
-    });
-  }
+  });
 }

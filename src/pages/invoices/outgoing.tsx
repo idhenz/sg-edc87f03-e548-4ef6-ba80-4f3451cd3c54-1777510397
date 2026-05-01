@@ -194,12 +194,43 @@ export default function InvoiceOutgoingPage() {
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!selectedInvoice) return
+    console.log('[PAYMENT_SUBMIT] ========== START ==========')
+    console.log('[PAYMENT_SUBMIT] Selected Invoice:', selectedInvoice)
+    console.log('[PAYMENT_SUBMIT] Current User:', user)
+    console.log('[PAYMENT_SUBMIT] Payment Data:', paymentData)
+    console.log('[PAYMENT_SUBMIT] Proof File:', proofFile)
+    
+    if (!selectedInvoice || !user) {
+      console.log('[PAYMENT_SUBMIT] ERROR: Missing invoice or user')
+      return
+    }
+
+    // Validation
+    if (!paymentData.bank_id || !paymentData.amount || !paymentData.payment_date || !proofFile) {
+      console.log('[PAYMENT_SUBMIT] ERROR: Missing required fields')
+      console.log('[PAYMENT_SUBMIT] bank_id:', paymentData.bank_id)
+      console.log('[PAYMENT_SUBMIT] amount:', paymentData.amount)
+      console.log('[PAYMENT_SUBMIT] payment_date:', paymentData.payment_date)
+      console.log('[PAYMENT_SUBMIT] proofFile:', proofFile)
+      toast({ 
+        title: 'Error', 
+        description: 'Harap isi semua field yang wajib (bertanda *)', 
+        variant: 'destructive' 
+      })
+      return
+    }
 
     const remaining = parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')
     const inputAmount = parseFloat(paymentData.amount)
     
+    console.log('[PAYMENT_SUBMIT] Validation:')
+    console.log('[PAYMENT_SUBMIT] - Total Amount:', selectedInvoice.total_amount || selectedInvoice.amount)
+    console.log('[PAYMENT_SUBMIT] - Paid Amount:', selectedInvoice.paid_amount || '0')
+    console.log('[PAYMENT_SUBMIT] - Remaining:', remaining)
+    console.log('[PAYMENT_SUBMIT] - Input Amount:', inputAmount)
+    
     if (inputAmount > remaining) {
+      console.log('[PAYMENT_SUBMIT] ERROR: Amount exceeds remaining')
       toast({ 
         title: 'Error', 
         description: `Nominal melebihi sisa tagihan (Rp ${remaining.toLocaleString('id-ID')})`, 
@@ -211,27 +242,30 @@ export default function InvoiceOutgoingPage() {
     setLoading(true)
     try {
       const formDataToSend = new FormData()
+      formDataToSend.append('user_session', JSON.stringify(user))
       formDataToSend.append('invoice_id', selectedInvoice.id.toString())
       formDataToSend.append('bank_id', paymentData.bank_id)
       formDataToSend.append('amount', paymentData.amount)
       formDataToSend.append('payment_date', paymentData.payment_date)
       if (paymentData.transfer_from) formDataToSend.append('transfer_from', paymentData.transfer_from)
       if (paymentData.notes) formDataToSend.append('notes', paymentData.notes)
-      if (proofFile) formDataToSend.append('proof', proofFile)
-      
-      // Add auth session to FormData
-      if (user) {
-        formDataToSend.append('user_session', JSON.stringify(user))
-      }
+      formDataToSend.append('proof', proofFile)
+
+      console.log('[PAYMENT_SUBMIT] FormData prepared, sending to API...')
 
       const res = await fetch('/api/payments/confirm', {
         method: 'POST',
         body: formDataToSend
       })
 
+      console.log('[PAYMENT_SUBMIT] API Response Status:', res.status)
+      console.log('[PAYMENT_SUBMIT] API Response OK:', res.ok)
+
       const data = await res.json()
+      console.log('[PAYMENT_SUBMIT] API Response Data:', data)
 
       if (res.ok) {
+        console.log('[PAYMENT_SUBMIT] SUCCESS!')
         toast({ title: 'Sukses', description: 'Pembayaran berhasil dikonfirmasi' })
         setShowPaymentDialog(false)
         setSelectedInvoice(null)
@@ -245,13 +279,17 @@ export default function InvoiceOutgoingPage() {
         setProofFile(null)
         fetchInvoices()
       } else {
+        console.log('[PAYMENT_SUBMIT] FAILED:', data.message)
         toast({ title: 'Error', description: data.message || 'Gagal menyimpan pembayaran', variant: 'destructive' })
       }
-    } catch (error) {
-      console.error('Payment error:', error)
+    } catch (error: any) {
+      console.error('[PAYMENT_SUBMIT] EXCEPTION:', error)
+      console.error('[PAYMENT_SUBMIT] Error message:', error.message)
+      console.error('[PAYMENT_SUBMIT] Error stack:', error.stack)
       toast({ title: 'Error', description: 'Terjadi kesalahan pada server', variant: 'destructive' })
     } finally {
       setLoading(false)
+      console.log('[PAYMENT_SUBMIT] ========== END ==========')
     }
   }
 
