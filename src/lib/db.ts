@@ -21,27 +21,19 @@ console.log('[DB] Initializing pool with host:', dbConfig.host, 'port:', dbConfi
 
 const pool = mysql.createPool(dbConfig)
 
-export async function query<T = any>(sql: string, values?: any[]): Promise<T[]> {
-  let connection
+export async function query(sql: string, params?: any[]) {
   try {
-    console.log('[DB] Getting connection from pool...')
-    connection = await pool.getConnection()
-    console.log('[DB] Connection acquired, executing query:', sql.substring(0, 50))
+    const connection = await pool.getConnection();
     
-    const [rows] = await connection.execute(sql, values)
-    console.log('[DB] Query success, rows:', Array.isArray(rows) ? rows.length : 'N/A')
-    
-    return rows as T[]
-  } catch (error: any) {
-    console.error('[DB] Query error:', error.message)
-    console.error('[DB] Error code:', error.code)
-    console.error('[DB] SQL State:', error.sqlState)
-    throw new Error(`Database error: ${error.message}`)
-  } finally {
-    if (connection) {
-      console.log('[DB] Releasing connection')
-      connection.release()
+    try {
+      const [rows] = await connection.execute(sql, params || []);
+      return rows;
+    } finally {
+      connection.release();
     }
+  } catch (error: any) {
+    console.error('[DB_QUERY_ERROR]', error.message);
+    throw error;
   }
 }
 
