@@ -712,6 +712,38 @@ export default function InvoiceOutgoingPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Print Preview Dialog */}
+          <Dialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+              <DialogHeader className="px-6 py-4 border-b">
+                <DialogTitle>Preview Invoice</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 w-full bg-muted/20">
+                {selectedPrintId && (
+                  <iframe
+                    src={`/invoices/print/${selectedPrintId}`}
+                    className="w-full h-full border-0"
+                    title="Print Preview"
+                  />
+                )}
+              </div>
+              <div className="p-4 border-t flex justify-end gap-2 bg-background">
+                <Button variant="outline" onClick={() => setShowPrintDialog(false)}>
+                  Tutup
+                </Button>
+                <Button onClick={() => {
+                  const iframe = document.querySelector('iframe[title="Print Preview"]') as HTMLIFrameElement;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.print();
+                  }
+                }}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Cetak / Simpan PDF
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </AppLayout>
     </ProtectedRoute>
