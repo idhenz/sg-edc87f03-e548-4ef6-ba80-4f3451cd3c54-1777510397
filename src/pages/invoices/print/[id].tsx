@@ -39,11 +39,21 @@ export default function InvoicePrintPage() {
     try {
       setLoading(true)
       const headers = getAuthHeader()
+      
+      console.log('Print page - Auth headers:', headers)
 
       // Fetch invoice
       const invRes = await fetch(`/api/invoices/outgoing?id=${id}`, { headers })
-      if (!invRes.ok) throw new Error('Failed to fetch invoice')
+      console.log('Print page - Invoice response status:', invRes.status)
+      
+      if (!invRes.ok) {
+        const errorText = await invRes.text()
+        console.error('Print page - API error:', errorText)
+        throw new Error(`Failed to fetch invoice: ${invRes.status} - ${errorText}`)
+      }
+      
       const invData = await invRes.json()
+      console.log('Print page - Invoice data:', invData)
       setInvoice(invData)
 
       // Fetch settings
@@ -64,8 +74,9 @@ export default function InvoicePrintPage() {
       
       // Auto print after data loaded
       setTimeout(() => window.print(), 1000)
-    } catch (error) {
-      console.error('Failed to load invoice:', error)
+    } catch (error: any) {
+      console.error('Print page - Full error:', error)
+      alert('Error: ' + error.message)
       setLoading(false)
     }
   }
