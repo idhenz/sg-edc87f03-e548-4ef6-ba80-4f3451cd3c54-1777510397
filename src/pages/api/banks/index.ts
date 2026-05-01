@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET') {
       const banks = await query('SELECT * FROM banks ORDER BY is_active DESC, bank_name ASC')
-      return res.status(200).json({ banks })
+      return res.status(200).json(banks || [])
     }
 
     if (req.method === 'POST') {
