@@ -1047,12 +1047,18 @@ export default function InvoicesOutgoingPage() {
                       <Label htmlFor="payment_amount">Nominal Transfer (Rp) *</Label>
                       <Input
                         id="payment_amount"
+                        name="payment_amount"
                         type="number"
                         value={paymentData.amount}
                         onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
                         max={parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')}
+                        step="0.01"
                         required
+                        placeholder={`Sisa tagihan: Rp ${(parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')).toLocaleString('id-ID')}`}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Maksimal: Rp {(parseFloat(selectedInvoice.total_amount || selectedInvoice.amount) - parseFloat(selectedInvoice.paid_amount || '0')).toLocaleString('id-ID')}
+                      </p>
                     </div>
                   </div>
 

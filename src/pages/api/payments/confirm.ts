@@ -43,28 +43,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const amount = parseFloat(amountStr)
 
-    // Check current invoice status and amount
-    const invoices = await query('SELECT amount, paid_amount FROM invoices_outgoing WHERE id = ?', [invoice_id]) as any[]
-    if (!invoices || invoices.length === 0) {
+    const invoiceResult = await query(
+      'SELECT id, amount, tax_amount, total_amount, paid_amount FROM invoices_outgoing WHERE id = ?',
+      [invoice_id]
+    )
+
+    if (!invoiceResult || invoiceResult.length === 0) {
       return res.status(404).json({ message: 'Invoice tidak ditemukan' })
     }
 
-    const currentTotalAmount = parseFloat(invoices[0].amount)
-    const currentPaidAmount = parseFloat(invoices[0].paid_amount || 0)
-    const newPaidAmount = currentPaidAmount + amount
-
-    if (newPaidAmount > currentTotalAmount) {
+    const invoice = invoiceResult[0]
+    const remaining = parseFloat(invoice.total_amount || invoice.amount) - parseFloat(invoice.paid_amount || '0')
+    
+    if (amount > remaining) {
       return res.status(400).json({ 
-        message: 'Total pembayaran melebihi tagihan',
-        remaining: currentTotalAmount - currentPaidAmount
+        message: `Nominal pembayaran (${amount.toLocaleString('id-ID')}) melebihi sisa tagihan (${remaining.toLocaleString('id-ID')})` 
       })
     }
 
     // Determine new status
     let newStatus = 'pending'
-    if (newPaidAmount >= currentTotalAmount) {
+    if (amount >= remaining) {
       newStatus = 'paid'
-    } else if (newPaidAmount > 0) {
+    } else if (amount > 0) {
       newStatus = 'partial'
     }
 
@@ -100,13 +101,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Update invoice status and paid_amount
     await query(
       'UPDATE invoices_outgoing SET status = ?, paid_amount = ? WHERE id = ?',
-      [newStatus, newPaidAmount, invoice_id]
+      [newStatus, amount, invoice_id]
     )
 
     return res.status(201).json({ 
       message: 'Konfirmasi pembayaran berhasil',
       status: newStatus,
-      paid_amount: newPaidAmount,
+      paid_amount: amount,
       proof_url: proofUrl 
     })
   } catch (error) {
