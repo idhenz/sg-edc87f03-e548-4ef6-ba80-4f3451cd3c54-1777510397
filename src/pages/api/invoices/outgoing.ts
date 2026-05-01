@@ -29,18 +29,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ invoice: invoices[0] })
       }
       
-      let sql = 'SELECT io.*, COALESCE(SUM(pc.amount), 0) as paid_amount FROM invoices_outgoing io LEFT JOIN payment_confirmations pc ON io.id = pc.invoice_id WHERE 1=1'
-      const params: any[] = []
+      // Get invoices by month and year
+      let sql = `SELECT io.*, c.name as customer_name, p.name as product_name 
+                 FROM invoices_outgoing io
+                 LEFT JOIN customers c ON io.customer_id = c.id
+                 LEFT JOIN products p ON io.product_id = p.id`;
       
+      const params: any[] = [];
+
       if (month && year) {
-        sql += ' AND MONTH(due_date) = ? AND YEAR(due_date) = ?'
-        params.push(parseInt(month as string), parseInt(year as string))
-      } else if (year) {
-        sql += ' AND YEAR(due_date) = ?'
-        params.push(parseInt(year as string))
+        sql += ` WHERE MONTH(io.created_at) = ? AND YEAR(io.created_at) = ?`;
+        params.push(month, year);
       }
-      
-      sql += ` ORDER BY io.invoice_date DESC`;
+
+      sql += ` ORDER BY io.created_at DESC`;
 
       const invoices = await query(sql, params);
       return res.status(200).json(invoices || []);
