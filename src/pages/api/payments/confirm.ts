@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
 import { query } from '@/lib/db';
-import { uploadToBiznetStorage } from '@/lib/biznetStorage';
+import { uploadFile } from '@/lib/biznetStorage';
 
 export const config = {
   api: {
@@ -53,14 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Data tidak lengkap' });
     }
 
-    // Upload proof to Biznet Storage
-    let proofUrl = null;
-    if (proofFile) {
+    // Upload proof to Biznet GIO Storage
+    let proofUrl = '';
+    if (proofFile && proofFile.filepath) {
       const fileBuffer = fs.readFileSync(proofFile.filepath);
-      const fileName = `payment_proof_${Date.now()}_${proofFile.originalFilename}`;
-      proofUrl = await uploadToBiznetStorage(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream');
+      const fileName = `payment-proofs/${Date.now()}-${proofFile.originalFilename}`;
+      proofUrl = await uploadFile(fileBuffer, fileName, proofFile.mimetype || 'application/octet-stream');
       
-      // Clean up temp file
+      // Delete temp file
       fs.unlinkSync(proofFile.filepath);
     }
 
