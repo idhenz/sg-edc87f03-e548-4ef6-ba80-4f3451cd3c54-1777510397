@@ -39,38 +39,34 @@ interface PaymentData {
   notes: string
 }
 
-export default function OutgoingInvoicesPage() {
+export default function InvoiceOutgoingPage() {
   const router = useRouter()
-  const { user, getAuthHeader } = useAuth()
   const { toast } = useToast()
-
+  const { user, getAuthHeader } = useAuth()
+  
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [customers, setCustomers] = useState<any[]>([])
-  const [products, setProducts] = useState<any[]>([])
   const [banks, setBanks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterYear, setFilterYear] = useState('')
   const [showDialog, setShowDialog] = useState(false)
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [proofFile, setProofFile] = useState<File | null>(null)
-  const [paymentHistory, setPaymentHistory] = useState<any[]>([])
-  const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
-
+  
   const [formData, setFormData] = useState({
     customer_id: '',
-    product_id: '',
     amount: '',
-    invoice_date: new Date().toISOString().split('T')[0],
+    invoice_date: '',
     due_date: '',
     notes: '',
     status: 'pending'
   })
-
-  const [paymentData, setPaymentData] = useState<PaymentData>({
+  
+  const [paymentData, setPaymentData] = useState({
     bank_id: '',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
