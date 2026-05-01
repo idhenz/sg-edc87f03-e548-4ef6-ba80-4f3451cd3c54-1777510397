@@ -22,18 +22,22 @@ interface Invoice {
 export default function PrintInvoice() {
   const router = useRouter()
   const { id } = router.query
-  const { getAuthHeader } = useAuth()
+  const { user, getAuthHeader } = useAuth()
   
   const [invoice, setInvoice] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !user) {
+      console.log('[PRINT] Waiting for id and user...', { id: !!id, user: !!user })
+      return
+    }
 
     const fetchData = async () => {
       try {
         const authHeaders = getAuthHeader()
+        console.log('[PRINT] User loaded:', user.email)
         console.log('[PRINT] Auth headers:', authHeaders)
         console.log('[PRINT] Fetching invoice ID:', id)
         
@@ -75,7 +79,7 @@ export default function PrintInvoice() {
     }
 
     fetchData()
-  }, [id, getAuthHeader])
+  }, [id, user, getAuthHeader])
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Memuat data invoice...</div>
