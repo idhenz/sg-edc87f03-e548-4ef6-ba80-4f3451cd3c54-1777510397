@@ -157,7 +157,7 @@ export default function CustomersPage() {
         headers: getAuthHeader()
       })
       const data = await res.json()
-      setCustomers(data.customers || [])
+      setCustomers(Array.isArray(data) ? data : (data.customers || []))
     } catch (error) {
       toast({
         title: 'Error',
