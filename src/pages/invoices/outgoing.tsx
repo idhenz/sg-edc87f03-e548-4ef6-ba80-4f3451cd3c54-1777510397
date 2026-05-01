@@ -90,13 +90,28 @@ export default function OutgoingInvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/invoices/outgoing?month=${selectedMonth}&year=${selectedYear}`, {
+      const params = new URLSearchParams()
+      if (filterMonth) params.append('month', filterMonth)
+      if (filterYear) params.append('year', filterYear)
+      
+      const res = await fetch(`/api/invoices/outgoing?${params.toString()}`, {
         headers: getAuthHeader()
       })
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch invoices')
+      }
+      
       const data = await res.json()
       setInvoices(Array.isArray(data) ? data : [])
     } catch (error) {
-      toast({ title: 'Error', description: 'Gagal memuat invoice', variant: 'destructive' })
+      console.error('Fetch invoices error:', error)
+      toast({
+        title: 'Error',
+        description: 'Gagal memuat data invoice',
+        variant: 'destructive',
+      })
+      setInvoices([])
     } finally {
       setLoading(false)
     }
