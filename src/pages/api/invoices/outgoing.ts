@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const result = await query(
           `SELECT io.*, c.name as customer_name 
            FROM invoices_outgoing io
-           LEFT JOIN customers c ON io.customer_id = c.id
+           LEFT JOIN customers c ON io.pelanggan_id = c.id
            WHERE io.id = ?`,
           [id]
         );
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let sql = `SELECT io.*, c.name as customer_name 
                  FROM invoices_outgoing io
-                 LEFT JOIN customers c ON io.customer_id = c.id`;
+                 LEFT JOIN customers c ON io.pelanggan_id = c.id`;
       
       const params: any[] = [];
 
@@ -59,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       await query(
         `INSERT INTO invoices_outgoing 
-         (customer_id, amount, tax_amount, total_amount, invoice_date, due_date, notes, status, paid_amount, created_by) 
+         (pelanggan_id, amount, tax_amount, total_amount, invoice_date, due_date, notes, status, paid_amount, created_by) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         [customer_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status || 'pending', user.id]
       );
@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       await query(
         `UPDATE invoices_outgoing 
-         SET customer_id = ?, amount = ?, tax_amount = ?, total_amount = ?, 
+         SET pelanggan_id = ?, amount = ?, tax_amount = ?, total_amount = ?, 
              invoice_date = ?, due_date = ?, notes = ?, status = ? 
          WHERE id = ?`,
         [customer_id, amountNum, taxAmount, totalAmount, invoice_date, due_date, notes || '', status, id]
