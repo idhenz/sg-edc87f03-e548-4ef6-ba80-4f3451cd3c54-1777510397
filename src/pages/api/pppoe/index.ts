@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '@/lib/db';
-import { getUserFromToken } from '@/lib/auth';
+import { getUserFromRequest } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const user = getUserFromToken(req);
+    const user = getUserFromRequest(req);
     if (!user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -23,30 +23,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       FROM pppoe_secrets ps
       LEFT JOIN routers r ON ps.router_id = r.id
       LEFT JOIN customers c ON ps.customer_id = c.id
+      WHERE 1=1
     `;
 
     const params: any[] = [];
-    const conditions: string[] = [];
 
     if (router_id) {
-      conditions.push('ps.router_id = ?');
+      sql += ' AND ps.router_id = ?';
       params.push(router_id);
     }
 
     if (available === 'true') {
-      conditions.push('ps.customer_id IS NULL');
+      sql += ' AND ps.customer_id IS NULL';
     }
 
-    if (conditions.length > 0) {
-      sql += ' WHERE ' + conditions.join(' AND ');
-    }
+    sql += ' ORDER BY ps.username ASC';
 
-    sql += ' ORDER BY ps.is_active DESC, ps.username ASC';
+    const secrets = await query(sql, params);
 
-    const pppoeSecrets = await query(sql, params);
-    return res.status(200).json(pppoeSecrets);
-  } catch (error) {
-    console.error('PPPoE API Error:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(200).json({ secrets });
+  } catch (error: any) {
+    console.error('PPPoE API Error:', error.message);
+    return res.status(500).json({ 
+      message: 'Terjadi kesalahan pada server', 
+      error: error.message 
+    });
   }
 }
