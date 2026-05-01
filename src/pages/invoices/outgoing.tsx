@@ -48,8 +48,8 @@ export default function InvoiceOutgoingPage() {
   const [customers, setCustomers] = useState<any[]>([])
   const [banks, setBanks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [filterMonth, setFilterMonth] = useState('')
-  const [filterYear, setFilterYear] = useState('')
+  const [filterMonth, setFilterMonth] = useState('all')
+  const [filterYear, setFilterYear] = useState('all')
   const [showDialog, setShowDialog] = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -86,8 +86,8 @@ export default function InvoiceOutgoingPage() {
     try {
       setLoading(true)
       const params = new URLSearchParams()
-      if (filterMonth) params.append('month', filterMonth)
-      if (filterYear) params.append('year', filterYear)
+      if (filterMonth && filterMonth !== 'all') params.append('month', filterMonth)
+      if (filterYear && filterYear !== 'all') params.append('year', filterYear)
       
       const res = await fetch(`/api/invoices/outgoing?${params.toString()}`, {
         headers: getAuthHeader()
@@ -338,7 +338,7 @@ export default function InvoiceOutgoingPage() {
                       <SelectValue placeholder="Pilih Bulan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Semua Bulan</SelectItem>
+                      <SelectItem value="all">Semua Bulan</SelectItem>
                       <SelectItem value="1">Januari</SelectItem>
                       <SelectItem value="2">Februari</SelectItem>
                       <SelectItem value="3">Maret</SelectItem>
@@ -361,7 +361,7 @@ export default function InvoiceOutgoingPage() {
                       <SelectValue placeholder="Pilih Tahun" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Semua Tahun</SelectItem>
+                      <SelectItem value="all">Semua Tahun</SelectItem>
                       <SelectItem value="2024">2024</SelectItem>
                       <SelectItem value="2025">2025</SelectItem>
                       <SelectItem value="2026">2026</SelectItem>
