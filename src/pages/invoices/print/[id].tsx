@@ -19,67 +19,51 @@ interface Invoice {
   status: string
 }
 
-export default function InvoicePrintPage() {
+export default function PrintInvoice() {
   const router = useRouter()
   const { id } = router.query
   const { getAuthHeader } = useAuth()
   
   const [invoice, setInvoice] = useState<any>(null)
-  const [settings, setSettings] = useState<any>({})
-  const [banks, setBanks] = useState<any[]>([])
+  const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (id) {
-      fetchData()
+    if (!id) return
+
+    const fetchData = async () => {
+      try {
+        // Fetch invoice
+        const invoiceRes = await fetch(`/api/invoices/outgoing?id=${id}`, {
+          headers: getAuthHeader()
+        })
+        
+        if (!invoiceRes.ok) {
+          throw new Error(`Failed to fetch invoice: ${invoiceRes.status} - ${await invoiceRes.text()}`)
+        }
+        
+        const invoiceData = await invoiceRes.json()
+        setInvoice(invoiceData)
+
+        // Fetch settings
+        const settingsRes = await fetch('/api/settings', {
+          headers: getAuthHeader()
+        })
+        
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json()
+          setSettings(settingsData)
+        }
+      } catch (error: any) {
+        console.error('Error fetching data:', error)
+        alert(error.message)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [id])
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      const headers = getAuthHeader()
-      
-      console.log('Print page - Auth headers:', headers)
-
-      // Fetch invoice
-      const invRes = await fetch(`/api/invoices/outgoing?id=${id}`, { headers })
-      console.log('Print page - Invoice response status:', invRes.status)
-      
-      if (!invRes.ok) {
-        const errorText = await invRes.text()
-        console.error('Print page - API error:', errorText)
-        throw new Error(`Failed to fetch invoice: ${invRes.status} - ${errorText}`)
-      }
-      
-      const invData = await invRes.json()
-      console.log('Print page - Invoice data:', invData)
-      setInvoice(invData)
-
-      // Fetch settings
-      const settingsRes = await fetch('/api/settings', { headers })
-      if (settingsRes.ok) {
-        const settingsData = await settingsRes.json()
-        setSettings(settingsData)
-      }
-
-      // Fetch banks
-      const banksRes = await fetch('/api/banks', { headers })
-      if (banksRes.ok) {
-        const banksData = await banksRes.json()
-        setBanks(banksData)
-      }
-
-      setLoading(false)
-      
-      // Auto print after data loaded
-      setTimeout(() => window.print(), 1000)
-    } catch (error: any) {
-      console.error('Print page - Full error:', error)
-      alert('Error: ' + error.message)
-      setLoading(false)
-    }
-  }
+    fetchData()
+  }, [id, getAuthHeader])
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Memuat data invoice...</div>
