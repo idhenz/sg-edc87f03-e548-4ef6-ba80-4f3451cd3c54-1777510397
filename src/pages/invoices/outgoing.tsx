@@ -290,31 +290,8 @@ export default function InvoiceOutgoingPage() {
     })
   }
 
-  const handlePrint = async (invoiceId: number) => {
-    try {
-      const res = await fetch(`/api/invoices/outgoing?id=${invoiceId}`, {
-        headers: getAuthHeader()
-      })
-      
-      if (!res.ok) {
-        toast({
-          title: 'Error',
-          description: 'Gagal memuat data invoice',
-          variant: 'destructive'
-        })
-        return
-      }
-
-      const invoice = await res.json()
-      window.open(`/invoices/print/${invoiceId}`, '_blank')
-    } catch (error) {
-      console.error('Print error:', error)
-      toast({
-        title: 'Error',
-        description: 'Terjadi kesalahan saat memuat invoice',
-        variant: 'destructive'
-      })
-    }
+  const handlePrint = (invoiceId: number) => {
+    window.open(`/invoices/print/${invoiceId}`, '_blank')
   }
 
   const getStatusBadge = (status: string) => {

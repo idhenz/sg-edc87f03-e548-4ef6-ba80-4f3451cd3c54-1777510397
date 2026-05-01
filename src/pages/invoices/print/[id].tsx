@@ -3,10 +3,26 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { Printer, ArrowLeft, Download, Building2, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
+
+interface Invoice {
+  id: number
+  customer_name: string
+  package_name: string
+  amount: string
+  tax_amount: string
+  total_amount: string
+  paid_amount: string
+  invoice_date: string
+  due_date: string
+  notes: string
+  status: string
+}
 
 export default function InvoicePrintPage() {
   const router = useRouter()
   const { id } = router.query
+  const { getAuthHeader } = useAuth()
   
   const [invoice, setInvoice] = useState<any>(null)
   const [settings, setSettings] = useState<any>({})
