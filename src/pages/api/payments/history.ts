@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { query } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
 
