@@ -3,7 +3,6 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { Printer, ArrowLeft, Download, Building2, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/contexts/AuthContext'
 
 interface Invoice {
   id: number
@@ -22,23 +21,27 @@ interface Invoice {
 export default function PrintInvoice() {
   const router = useRouter()
   const { id } = router.query
-  const { user, getAuthHeader } = useAuth()
-  
   const [invoice, setInvoice] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!id || !user) {
-      console.log('[PRINT] Waiting for id and user...', { id: !!id, user: !!user })
-      return
-    }
+    if (!id) return
 
     const fetchData = async () => {
       try {
-        const authHeaders = getAuthHeader()
-        console.log('[PRINT] User loaded:', user.email)
-        console.log('[PRINT] Auth headers:', authHeaders)
+        // Read user directly from localStorage (don't wait for context)
+        const savedUser = localStorage.getItem('user')
+        if (!savedUser) {
+          alert('Session expired. Please login again.')
+          router.push('/login')
+          return
+        }
+        
+        const userData = JSON.parse(savedUser)
+        const authHeaders = { 'X-User-Session': JSON.stringify(userData) }
+        
+        console.log('[PRINT] User from localStorage:', userData.email)
         console.log('[PRINT] Fetching invoice ID:', id)
         
         // Fetch invoice
@@ -55,7 +58,7 @@ export default function PrintInvoice() {
         }
         
         const invoiceData = await invoiceRes.json()
-        console.log('[PRINT] Invoice data:', invoiceData)
+        console.log('[PRINT] Invoice data loaded successfully')
         setInvoice(invoiceData)
 
         // Fetch settings
@@ -67,7 +70,7 @@ export default function PrintInvoice() {
         
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json()
-          console.log('[PRINT] Settings data:', settingsData)
+          console.log('[PRINT] Settings data loaded successfully')
           setSettings(settingsData)
         }
       } catch (error: any) {
@@ -79,7 +82,7 @@ export default function PrintInvoice() {
     }
 
     fetchData()
-  }, [id, user, getAuthHeader])
+  }, [id, router])
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Memuat data invoice...</div>
