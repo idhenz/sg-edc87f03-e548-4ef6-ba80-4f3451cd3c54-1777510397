@@ -17,11 +17,10 @@ import { Plus, Edit, Trash2, Printer, DollarSign, Calendar, User, Package, FileT
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { ProtectedRoute as ProtectedRouteComponent } from '@/components/ProtectedRoute'
-import { useAuth } from '@/contexts/AuthContext'
 
 interface Invoice {
   id: number
-  invoice_number: string
+  customer_id: number
   customer_name: string
   package_name: string
   due_date: string
