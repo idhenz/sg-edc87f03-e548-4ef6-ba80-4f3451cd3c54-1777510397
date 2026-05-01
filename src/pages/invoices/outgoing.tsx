@@ -335,7 +335,8 @@ export default function InvoiceOutgoingPage() {
   }
 
   const handlePrint = (invoiceId: number) => {
-    window.open(`/invoices/print/${invoiceId}`, '_blank')
+    setSelectedPrintId(invoiceId)
+    setShowPrintDialog(true)
   }
 
   const getStatusBadge = (status: string) => {
