@@ -177,7 +177,7 @@ export default function InvoiceOutgoingPage() {
 
       if (res.ok) {
         toast({ title: 'Berhasil', description: 'Invoice berhasil dihapus' })
-        setShowDeleteAlert(false)
+        setShowDeleteDialog(false)
         fetchInvoices()
       }
     } catch (error) {
@@ -270,7 +270,6 @@ export default function InvoiceOutgoingPage() {
     setSelectedInvoice(invoice)
     setFormData({
       customer_id: invoice.customer_id.toString(),
-      product_id: invoice.product_id.toString(),
       amount: invoice.amount,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
@@ -284,7 +283,6 @@ export default function InvoiceOutgoingPage() {
     setSelectedInvoice(null)
     setFormData({
       customer_id: '',
-      product_id: '',
       amount: '',
       invoice_date: new Date().toISOString().split('T')[0],
       due_date: '',
@@ -424,7 +422,7 @@ export default function InvoiceOutgoingPage() {
                             <Button size="sm" variant="outline" onClick={() => openEditDialog(invoice)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => { setSelectedInvoice(invoice); setShowDeleteAlert(true) }}>
+                            <Button size="sm" variant="destructive" onClick={() => { setSelectedInvoice(invoice); setShowDeleteDialog(true) }}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -444,7 +442,7 @@ export default function InvoiceOutgoingPage() {
                 <DialogTitle>{selectedInvoice ? 'Edit Invoice' : 'Tambah Invoice'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <Label htmlFor="customer_id">Pelanggan *</Label>
                     <Select value={formData.customer_id} onValueChange={(v) => setFormData({ ...formData, customer_id: v })}>
@@ -454,19 +452,6 @@ export default function InvoiceOutgoingPage() {
                       <SelectContent>
                         {customers.map(c => (
                           <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="product_id">Layanan *</Label>
-                    <Select value={formData.product_id} onValueChange={(v) => setFormData({ ...formData, product_id: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih layanan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map(p => (
-                          <SelectItem key={p.id} value={p.id.toString()}>{p.name} - Rp {parseFloat(p.price).toLocaleString('id-ID')}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -652,7 +637,7 @@ export default function InvoiceOutgoingPage() {
           </Dialog>
 
           {/* Delete Confirmation */}
-          <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Hapus Invoice?</AlertDialogTitle>
